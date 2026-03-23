@@ -10,37 +10,22 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.ViewGroupManager
+import com.facebook.react.views.view.ReactViewGroup
 import com.openreplay.tracker.listeners.Analytics
 import com.openreplay.tracker.listeners.SwipeDirection
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-class RnTrackerTouchManager : ViewGroupManager<FrameLayout>() {
+class RnTrackerTouchManager : ViewGroupManager<ReactViewGroup>() {
 
   override fun getName(): String = "RnTrackerTouchView"
 
-  override fun createViewInstance(reactContext: ThemedReactContext): FrameLayout {
+  override fun createViewInstance(reactContext: ThemedReactContext): ReactViewGroup {
     return RnTrackerRootLayout(reactContext)
-  }
-
-  override fun addView(parent: FrameLayout, child: View, index: Int) {
-    parent.addView(child, index)
-  }
-
-  override fun getChildCount(parent: FrameLayout): Int = parent.childCount
-
-  override fun getChildAt(parent: FrameLayout, index: Int): View = parent.getChildAt(index)
-
-  override fun removeViewAt(parent: FrameLayout, index: Int) {
-    parent.removeViewAt(index)
-  }
-
-  override fun removeAllViews(parent: FrameLayout) {
-    parent.removeAllViews()
   }
 }
 
-class RnTrackerRootLayout(context: Context) : FrameLayout(context) {
+class RnTrackerRootLayout(context: Context) : ReactViewGroup(context) {
   private val touchStart = PointF()
   private val gestureDetector: GestureDetector
 

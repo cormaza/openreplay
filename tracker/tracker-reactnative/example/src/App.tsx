@@ -2,19 +2,20 @@ import * as React from 'react';
 
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import Openreplay from '@openreplay/react-native';
+import { OR_PROJECT_KEY, OR_INGEST_URL } from '@env';
 
 export default function App() {
   const [number, onChangeNumber] = React.useState('');
 
   const start = () => {
-    Openreplay.tracker.startSession(
-      process.env.REACT_APP_KEY!,
-      {},
-      process.env.REACT_APP_INGEST
-    );
-    Openreplay.tracker.setMetadata('key', 'value');
-    Openreplay.tracker.setUserID('user-id');
-    Openreplay.patchNetwork(global, () => false, {});
+    try {
+      Openreplay.tracker.startSession(OR_PROJECT_KEY, {}, OR_INGEST_URL);
+      Openreplay.tracker.setMetadata('key', 'value');
+      Openreplay.tracker.setUserID('user-id');
+      Openreplay.patchNetwork(global, () => false, {});
+    } catch (e) {
+      console.warn('OpenReplay start failed:', e);
+    }
   };
 
   React.useEffect(start, []);
