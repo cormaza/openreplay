@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite';
 import ProjectTabTracking from 'Components/Client/Projects/ProjectTabTracking';
 import CustomFields from 'Components/Client/CustomFields';
 import ProjectCaptureRate from 'Components/Client/Projects/ProjectCaptureRate';
+import CaptureLimit from 'Components/Client/Projects/CaptureLimit';
 import { Empty } from 'antd';
 
 const ProjectTabContent: React.FC = () => {
@@ -22,7 +23,12 @@ const ProjectTabContent: React.FC = () => {
   const tabContent: Record<string, React.ReactNode> = React.useMemo(
     () => ({
       installation: <ProjectTabTracking project={project} />,
-      captureRate: <ProjectCaptureRate project={project} />,
+      captureRate: (
+        <>
+          <ProjectCaptureRate project={project} />
+          <CaptureLimit project={project} />
+        </>
+      ),
       metadata: <CustomFields />,
     }),
     [project],
