@@ -47,7 +47,7 @@ func NewHandlers(cfg *config.Config, log logger.Logger, responser api.Responser,
 
 func (h *handlersImpl) GetAll() []*api.Description {
 	return []*api.Description{
-		{"/v1/web/images", "POST", h.imagesUploaderHandlerWeb, api.NoPermissions, api.DoNotTrack},
+		{"/v1/mobile/images", "POST", h.imagesUploaderHandlerMobile, api.NoPermissions, api.DoNotTrack},
 	}
 }
 
@@ -56,7 +56,7 @@ type ImagesMessage struct {
 	Data []byte
 }
 
-func (e *handlersImpl) imagesUploaderHandlerWeb(w http.ResponseWriter, r *http.Request) {
+func (e *handlersImpl) imagesUploaderHandlerMobile(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	sessionData, err := e.tokenizer.ParseFromHTTPRequest(r)
