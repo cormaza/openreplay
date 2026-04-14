@@ -58,13 +58,22 @@ func getBatchType(data []byte) (uint64, int64, error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to read message type: %w", err)
 	}
-	if msgType != MsgBatchMetadata {
+	switch msgType {
+	case MsgBatchMetadata:
+		msg, err := DecodeBatchMetadata(reader)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to decode web batch metadata: %w", err)
+		}
+		metadata := msg.(*BatchMetadata)
+		return metadata.Version, metadata.Timestamp, nil
+	case MsgMobileBatchMeta:
+		msg, err := DecodeMobileBatchMeta(reader)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to decode mobile batch metadata: %w", err)
+		}
+		metadata := msg.(*MobileBatchMeta)
+		return uint64(FullBatch), int64(metadata.Timestamp), nil
+	default:
 		return uint64(RawData), 0, nil
 	}
-	msg, err := DecodeBatchMetadata(reader)
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to decode batch metadata: %w", err)
-	}
-	metadata := msg.(*BatchMetadata)
-	return metadata.Version, metadata.Timestamp, nil
 }
