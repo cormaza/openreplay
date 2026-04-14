@@ -23,7 +23,6 @@ import (
 	"openreplay/backend/pkg/queue/types"
 	"openreplay/backend/pkg/sessions"
 	handler "openreplay/backend/pkg/sink"
-	"openreplay/backend/pkg/storage"
 	"openreplay/backend/pkg/url/assets"
 )
 
@@ -73,9 +72,8 @@ func main() {
 	filePool := sessionwriter.NewFilePool(log, int(cfg.FsUlimit), cfg.FileBuffer, cfg.MaxFileSize)
 	mobWriter := sessionwriter.NewMobWriter(log, sessManager, filePool, cfg.FsDir, cfg.FileSplitTime)
 
-	counter := storage.NewLogCounter()
 	assetMessageHandler := assetscache.New(log, &cfg.Cache, rewriter, producer, sinkMetrics)
-	msgHandler := handler.New(cfg, log, mobWriter, producer, assetMessageHandler, sinkMetrics, counter)
+	msgHandler := handler.New(cfg, log, mobWriter, producer, assetMessageHandler, sinkMetrics)
 
 	batchIterator := messages.NewBatchIterator(
 		log,
@@ -132,7 +130,6 @@ func main() {
 				log.Error(ctx, "can't commit messages: %s", err)
 			}
 			mobWriter.Sync()
-			log.Info(ctx, "%s", counter.Log())
 			log.Info(ctx, "writer: %s", mobWriter.Info())
 		default:
 			err := consumer.ConsumeNext()

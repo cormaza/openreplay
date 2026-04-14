@@ -111,8 +111,7 @@ func (w *MobWriter) HandleBatch(data []byte, batch *messages.BatchInfo) {
 			w.log.Error(ctx, "devtools write error: %s", err)
 		}
 	default:
-		// TODO: change to Debug level
-		w.log.Warn(ctx, "unknown batch type: %s", messages.BatchType(batch.Version()))
+		w.log.Debug(ctx, "unknown batch type: %d", batch.Version())
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics/sink"
 	"openreplay/backend/pkg/queue/types"
-	"openreplay/backend/pkg/storage"
 	"os"
 )
 
@@ -22,7 +21,6 @@ type handlerImpl struct {
 	producer            types.Producer
 	assetMessageHandler *assetscache.AssetsCache
 	sinkMetrics         sink.Sink
-	counter             *storage.LogCounter
 	batchInfo           *messages.BatchInfo
 	sessionID           uint64
 	messageIndex        []byte
@@ -34,7 +32,7 @@ type Handler interface {
 	Handle(msg messages.Message)
 }
 
-func New(cfg *config.Config, log logger.Logger, writer *sessionwriter.MobWriter, producer types.Producer, assetMessageHandler *assetscache.AssetsCache, metrics sink.Sink, counter *storage.LogCounter) Handler {
+func New(cfg *config.Config, log logger.Logger, writer *sessionwriter.MobWriter, producer types.Producer, assetMessageHandler *assetscache.AssetsCache, metrics sink.Sink) Handler {
 	if _, err := os.Stat(cfg.FsDir); os.IsNotExist(err) {
 		log.Fatal(context.Background(), "%v doesn't exist. %v", cfg.FsDir, err)
 	}
@@ -45,7 +43,6 @@ func New(cfg *config.Config, log logger.Logger, writer *sessionwriter.MobWriter,
 		producer:            producer,
 		assetMessageHandler: assetMessageHandler,
 		sinkMetrics:         metrics,
-		counter:             counter,
 		messageIndex:        make([]byte, 8),
 		domBuffer:           bytes.NewBuffer(make([]byte, 0, 1024)),
 		devBuffer:           bytes.NewBuffer(make([]byte, 0, 1024)),
