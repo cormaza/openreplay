@@ -15,6 +15,11 @@ export default class PrimitiveReader {
     return this.p < this.buf.length;
   }
 
+  readUint8(): number | null {
+    if (this.p >= this.buf.length) return null;
+    return this.buf[this.p++];
+  }
+
   readUint(): number | null {
     let { p } = this;
     let r = 0;
@@ -61,8 +66,8 @@ export default class PrimitiveReader {
     return u;
   }
 
-  readString(): string | null {
-    const l = this.readUint();
+  readString(custom?: number): string | null {
+    const l = custom ?? this.readUint();
     if (l === null || this.p + l > this.buf.length) {
       return null;
     }
@@ -74,6 +79,16 @@ export default class PrimitiveReader {
       return null;
     }
     return !!this.buf[this.p++];
+  }
+
+  readSize = (): number | null => {
+    if (this.p + 3 > this.buf.length) return null;
+    let size = 0;
+    for (let i = 0; i < 3; i++) {
+      size += this.buf[this.p + i] << (i * 8);
+    }
+    this.p += 3;
+    return size;
   }
 
   skip(n: number) {

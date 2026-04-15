@@ -1,7 +1,7 @@
 import Logger from 'App/logger';
 import type { Message } from './message.gen';
 import type { RawMessage } from './raw.gen';
-import { MType } from './raw.gen';
+import { MType, VALID_TP_SET } from './raw.gen';
 import RawMessageReader from './RawMessageReader.gen';
 import rewriteMessage from './rewriter/rewriteMessage';
 
@@ -10,11 +10,13 @@ import rewriteMessage from './rewriter/rewriteMessage';
 export default class MFileReader extends RawMessageReader {
   private pLastMessageID: number = 0;
 
-  private currentTime: number;
+  private currentTime: number = 0;
 
   public error: boolean = false;
 
   private noIndexes: boolean = false;
+  private headerSkipped: boolean = false;
+  private indexesDetected: boolean = false;
 
   constructor(
     data: Uint8Array,
@@ -25,14 +27,54 @@ export default class MFileReader extends RawMessageReader {
   }
 
   public checkForIndexes() {
-    // 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff = no indexes
-    const skipIndexes = this.buf.slice(0, 8).every((b) => b === 0xff);
+    // 8-byte header (0xff x7 + version byte) — skip it
+    const hasHeader =
+      this.buf.length >= 8 &&
+      this.buf.slice(this.p, this.p + 7).every((b) => b === 0xff) &&
+      (this.buf[this.p + 7] === 0xff ||
+        this.buf[this.p + 7] === 0xfe ||
+        this.buf[this.p + 7] === 0xfd);
 
-    if (skipIndexes) {
-      if (!this.noIndexes) {
-        this.skip(8);
+    if (hasHeader && !this.headerSkipped) {
+      this.skip(8);
+      this.headerSkipped = true;
+      // Set pLastMessageID past the header so needSkipMessage
+      // doesn't compare real indexes against the 0xFF header bytes
+      this.pLastMessageID = this.p;
+    }
+
+    // After header, detect if data has 8-byte LE indexes before each message.
+    // If the byte at current position is NOT a valid message type, it's an index.
+    if (!this.indexesDetected) {
+      this.indexesDetected = true;
+      if (this.p + 8 < this.buf.length) {
+        const firstByte = this.buf[this.p];
+        // Index bytes form a LE uint64; first byte of an index is typically
+        // a small number (1, 2, ...) that could also be a valid tp.
+        // But byte[8] after the index should also be a valid tp.
+        // If firstByte is a valid tp, check if treating it as an index
+        // produces a valid tp at position p+8.
+        if (!VALID_TP_SET.has(firstByte)) {
+          // Not a valid tp → must be an index
+          this.noIndexes = false;
+        } else {
+          // Could be tp or index. Read 8-byte LE value.
+          let id = 0;
+          for (let i = 0; i < 8; i++) {
+            id += this.buf[this.p + i] * 2 ** (8 * i);
+          }
+          // Small sequential index (1, 2, ...) vs message content:
+          // If the 8-byte value is small AND byte[p+8] is a valid tp, likely has indexes
+          const byteAfterIndex = this.buf[this.p + 8];
+          if (id <= 0xffffffffffff && VALID_TP_SET.has(byteAfterIndex)) {
+            this.noIndexes = false;
+          } else {
+            this.noIndexes = true;
+          }
+        }
+      } else {
+        this.noIndexes = true;
       }
-      this.noIndexes = true;
     }
   }
 

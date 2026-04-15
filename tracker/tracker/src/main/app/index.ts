@@ -130,6 +130,7 @@ type AppOptions = {
   __is_snippet: boolean
   __debug_report_edp: string | null
   __debug__?: ILogLevel
+  __local_debug?: boolean
   localStorage: Storage | null
   sessionStorage: Storage | null
   forceSingleTab?: boolean
@@ -297,6 +298,7 @@ export default class App {
       __is_snippet: false,
       __debug_report_edp: null,
       __debug__: LogLevel.Silent,
+      __local_debug: false,
       localStorage: null,
       sessionStorage: null,
       forceSingleTab: false,
@@ -814,6 +816,7 @@ export default class App {
       this._debug('worker_failed', data.reason)
     } else if (data.type === 'compress') {
       const batch = data.batch
+      const dataType = data.dataType
       const batchSize = batch.byteLength
       const hasCompressionAPI = 'CompressionStream' in globalThis
       if (batchSize > this.compressionThreshold && hasCompressionAPI) {
@@ -825,15 +828,24 @@ export default class App {
             this.worker?.postMessage({
               type: 'compressed',
               batch: new Uint8Array(compressedBuffer),
+              dataType,
             })
           })
           .catch((err) => {
             this.debug.error('Openreplay compression error:', err)
-            this.worker?.postMessage({ type: 'uncompressed', batch: batch })
+            this.worker?.postMessage({ type: 'uncompressed', batch: batch, dataType })
           })
       } else {
-        this.worker?.postMessage({ type: 'uncompressed', batch: batch })
+        this.worker?.postMessage({ type: 'uncompressed', batch: batch, dataType })
       }
+    } else if (data.type === 'local_save') {
+      const blob = new Blob([data.batch as BlobPart], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.name
+      a.click()
+      URL.revokeObjectURL(url)
     } else if (data.type === 'queue_empty') {
       this.onSessionSent()
     }
@@ -903,22 +915,33 @@ export default class App {
       return
     }
 
-    if (this.worker === undefined || !this.messages.length) {
+    if (this.worker === undefined) {
       return
     }
 
     if (!this.messages.length) {
-      // Release empty batches every 30 secs (1000 * 30ms)
+      // Send a keepalive batch every ~30s (1000 * 30ms) to keep the session active
       if (this.emptyBatchCounter < 1000) {
         this.emptyBatchCounter++
         return
       }
+      // Keepalive: send just Timestamp + TabData so the session stays alive
+      this.emptyBatchCounter = 0
+      try {
+        this.worker?.postMessage([Timestamp(this.timestamp()), TabData(this.session.getTabId())])
+      } catch (e) {
+        this._debug('worker_keepalive', e)
+      }
+      return
     }
 
     this.emptyBatchCounter = 0
 
     try {
       requestIdleCb(() => {
+        if (!this.messages.length) {
+          return
+        }
         this.messages.unshift(Timestamp(this.timestamp()), TabData(this.session.getTabId()))
         this.worker?.postMessage(this.messages)
         this.commitCallbacks.forEach((cb) => cb(this.messages))
@@ -1144,10 +1167,15 @@ export default class App {
   singleBuffer = false
 
   private checkSessionToken(forceNew?: boolean) {
-    const lsReset = this.sessionStorage.getItem(this.options.session_reset_key) !== null
-    const needNewSessionID = forceNew || lsReset
+    const PROTO_VERSION = "2";
+    const needReset = this.sessionStorage.getItem(this.options.session_reset_key) !== null
+    let needNewSessionID = forceNew || needReset
     const sessionToken = this.session.getSessionToken(this.projectKey)
-
+    if (sessionToken) {
+      const storedVersion = this.sessionStorage.getItem(`${this.options.session_token_key}_version`)
+      needNewSessionID = !storedVersion || storedVersion !== PROTO_VERSION
+      this.sessionStorage.setItem(`${this.options.session_token_key}_version`, PROTO_VERSION)
+    }
     return needNewSessionID || !sessionToken
   }
 
@@ -1344,6 +1372,7 @@ export default class App {
       connAttemptCount: this.options.connAttemptCount,
       connAttemptGap: this.options.connAttemptGap,
       tabId: this.session.getTabId(),
+      localDebug: this.options.__local_debug,
     })
     const r = await fetch(this.options.ingestPoint + '/v1/web/start', {
       method: 'POST',
@@ -1372,11 +1401,13 @@ export default class App {
       userState,
       beaconSizeLimit,
       projectID,
+      protocolVersion: offlineProtocolVersion,
     } = await r.json()
     this.worker?.postMessage({
       type: 'auth',
       token,
       beaconSizeLimit,
+      protocolVersion: offlineProtocolVersion,
     })
     this.session.assign({ projectID })
     this.session.setUserInfo({
@@ -1449,6 +1480,7 @@ export default class App {
       connAttemptCount: this.options.connAttemptCount,
       connAttemptGap: this.options.connAttemptGap,
       tabId: this.session.getTabId(),
+      localDebug: this.options.__local_debug,
     })
 
     const sessionToken = this.session.getSessionToken(this.projectKey)
@@ -1514,6 +1546,7 @@ export default class App {
         canvasFPS,
         framesSupport,
         assistOnly: socketOnly,
+        protocolVersion,
       } = await r.json()
       if (
         typeof token !== 'string' ||
@@ -1558,6 +1591,7 @@ export default class App {
           type: 'auth',
           token,
           beaconSizeLimit,
+          protocolVersion,
         })
       }
 

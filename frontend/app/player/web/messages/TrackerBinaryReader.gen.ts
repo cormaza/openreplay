@@ -5,8 +5,12 @@ import PrimitiveReader from './PrimitiveReader'
 import { MType } from './raw.gen'
 import type { RawMessage } from './raw.gen'
 
+const SIZE_BYTES = 3
 
-export default class RawMessageReader extends PrimitiveReader {
+// Message types that are written WITHOUT a size prefix (batch-level protocol messages)
+const NO_SIZE_TYPES = new Set([80, 81, 82])
+
+export default class TrackerBinaryReader extends PrimitiveReader {
   readMessage(): RawMessage | null {
     const p = this.p
     const resetPointer = () => {
@@ -16,6 +20,36 @@ export default class RawMessageReader extends PrimitiveReader {
 
     const tp = this.readUint()
     if (tp === null) { return resetPointer() }
+
+    // Batch-level messages have no size prefix — read fields directly to advance pointer, then skip
+    if (NO_SIZE_TYPES.has(tp)) {
+      switch (tp) {
+      case 81: {
+        // BatchMetadata: Version, PageNo, FirstIndex, Timestamp, Location
+        const version = this.readUint(); if (version === null) { return resetPointer() }
+        const pageNo = this.readUint(); if (pageNo === null) { return resetPointer() }
+        const firstIndex = this.readUint(); if (firstIndex === null) { return resetPointer() }
+        const timestamp = this.readInt(); if (timestamp === null) { return resetPointer() }
+        const location = this.readString(); if (location === null) { return resetPointer() }
+        return this.readMessage()
+      }
+      case 82: {
+        // PartitionedMessage: PartNo, PartTotal
+        const partNo = this.readUint(); if (partNo === null) { return resetPointer() }
+        const partTotal = this.readUint(); if (partTotal === null) { return resetPointer() }
+        return this.readMessage()
+      }
+      default:
+        // Unknown no-size message, cannot skip safely
+        return null
+      }
+    }
+
+    // All other messages have a 3-byte size prefix
+    const size = this.readSize()
+    if (size === null) { return resetPointer() }
+
+    const bodyStart = this.p
 
     switch (tp) {
 
@@ -1053,13 +1087,16 @@ export default class RawMessageReader extends PrimitiveReader {
       };
     }
 
-    default:
-      console.debug(
-        `Unrecognized tp=${tp}, msg started at ${p}, pointer now at ${this.p}, buf length ${this.buf.length}`,
-        '\n250 bytes before msg start:\n', this.buf.slice(Math.max(0, p - 250), p).join(' '),
-        '\n250 bytes from msg start:\n', this.buf.slice(p, p + 250).join(' '),
-      )
-      throw new Error(`Unrecognizable message type: ${ tp }; Pointer at the position ${this.p} of ${this.buf.length}`)
+    default: {
+      // Skip unknown message type using its size prefix
+      const skipTo = bodyStart + size
+      if (skipTo > this.buf.length) {
+        this.p = this.buf.length
+        return null
+      }
+      this.p = skipTo
+      return this.readMessage()
+    }
     }
   }
 }

@@ -1,5 +1,7 @@
 import Message from './messages.gen.js'
 
+export type DataType = 'player' | 'assets' | 'devtools' | 'analytics'
+
 export interface Options {
   connAttemptCount?: number
   connAttemptGap?: number
@@ -12,12 +14,14 @@ type Start = {
   timestamp: number
   url: string
   tabId: string
+  localDebug?: boolean
 } & Options
 
 type Auth = {
   type: 'auth'
   token: string
   beaconSizeLimit?: number
+  protocolVersion?: number
 }
 
 export type ToWorkerData =
@@ -26,8 +30,8 @@ export type ToWorkerData =
   | Start
   | Auth
   | Array<Message>
-  | { type: 'compressed'; batch: Uint8Array }
-  | { type: 'uncompressed'; batch: Uint8Array }
+  | { type: 'compressed'; batch: Uint8Array; dataType: DataType }
+  | { type: 'uncompressed'; batch: Uint8Array; dataType: DataType }
   | 'forceFlushBatch'
   | 'closing'
   | 'check_queue'
@@ -41,10 +45,17 @@ type QEmpty = {
   type: 'queue_empty'
 }
 
+type LocalSave = {
+  type: 'local_save'
+  name: string
+  batch: Uint8Array
+}
+
 export type FromWorkerData =
   | 'a_stop'
   | 'a_start'
   | Failure
   | 'not_init'
-  | { type: 'compress'; batch: Uint8Array }
+  | { type: 'compress'; batch: Uint8Array; dataType: DataType }
   | QEmpty
+  | LocalSave

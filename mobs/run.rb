@@ -101,13 +101,14 @@ end
 $context = :web
 
 class Message
-  attr_reader :id, :name, :tracker, :replayer, :swift, :attributes, :context
-  def initialize(name:, id:, tracker: $context == :web, replayer: $context == :web, swift: $context == :ios, &block)
+  attr_reader :id, :name, :tracker, :replayer, :swift, :pipeline, :attributes, :context
+  def initialize(name:, id:, tracker: $context == :web, replayer: $context == :web, swift: $context == :ios, pipeline: nil, &block)
     @id = id
     @name = name
     @tracker = tracker
     @replayer = replayer
     @swift = swift
+    @pipeline = pipeline
     @context = $context
     @attributes = []
     # opts.each { |key, value| send "#{key}=", value }
@@ -120,7 +121,7 @@ class Message
         name: name,
         type: type,
       )
-      @attributes << Attribute.new(opts)
+      @attributes << Attribute.new(**opts)
     end
   end
 end
@@ -132,7 +133,7 @@ def message(id, name, opts = {}, &block)
   $ids << id
   opts[:id] = id
   opts[:name] = name
-  msg = Message.new(opts, &block)
+  msg = Message.new(**opts, &block)
   $messages << msg
 end
 
