@@ -47,16 +47,19 @@ spec:
             - |
               # Delete all the files older than {{.Values.efsCleaner.retention}} days
               set -x
-              echo "Cleaning NFS strorage for data older than {{.Values.efsCleaner.retention}} days"
+              echo "Cleaning NFS storage for data older than {{.Values.efsCleaner.retention}} days"
               storage=$(df -h /mnt/efs | awk 'NR==2 {print $2}')
               {{- $time := mul .Values.efsCleaner.retention 1440 }}
               {{- if .Values.efsCleaner.retentionHours }}
-              {{- $time = mul .Values.efsCleaner.retentionHours 60 }} 
+              {{- $time = mul .Values.efsCleaner.retentionHours 60 }}
               {{- end}}
-              find /mnt/efs -type f -mmin +{{ $time }} -exec /bin/bash -c "ls -lah {}; rm {}" \;
-              echo "Storage before cleaning"
-              echo ${storage}
-              echo "Storage after cleaning"
+              echo "Storage before cleaning: ${storage}"
+              # ionice -c 2 -n 7 = best-effort lowest IO priority
+              # nice -n 19 = lowest CPU priority
+              # -delete = no fork per file, single kernel call
+              ionice -c 2 -n 7 nice -n 19 \
+                find /mnt/efs -type f -mmin +{{ $time }} -delete
+              echo "Storage after cleaning:"
               df -h /mnt/efs | awk 'NR==2 {print $2}'
             volumeMounts:
             - mountPath: /mnt/efs
