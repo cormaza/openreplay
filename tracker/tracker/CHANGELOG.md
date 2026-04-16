@@ -1,3 +1,7 @@
+## 18.0.0
+
+- introduce batch splitting (assets and analytics data are sent separately for faster backend processing times)
+
 ## 17.2.6
 
 - improvements for crossdomain iframe communication and token reassignment

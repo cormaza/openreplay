@@ -218,8 +218,6 @@ self.onmessage = ({ data }: { data: ToWorkerData }): any => {
       data.url,
       (batch, skipCompression, dataType = 'player') => {
         if (!sender) return;
-        const types = debugReadBatchTypes(batch)
-        console.debug(`[OR batch] dataType=${dataType} msgs=${types.length} types=`, types)
         if (skipCompression) {
           sender.sendUncompressed(batch, dataType)
         } else {

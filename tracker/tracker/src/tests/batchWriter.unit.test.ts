@@ -21,6 +21,8 @@ jest.mock('../common/messages.gen', () => {
     default: null,
     Type,
     ASSET_MESSAGES: new Set([60, 61, 71, 73]),
+    DEVTOOLS_MESSAGES: new Set([21, 22, 40, 41, 44, 45, 46, 47, 48, 79, 83, 84, 85, 87, 89, 116, 120, 121, 123]),
+    ANALYTICS_MESSAGES: new Set([17, 23, 24, 27, 28, 29, 30, 42, 63, 64, 78, 112, 115, 124]),
   }
 })
 
