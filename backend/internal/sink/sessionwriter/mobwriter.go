@@ -107,7 +107,15 @@ func (w *MobWriter) HandleBatch(data []byte, batch *messages.BatchInfo) {
 			}
 		}
 	case messages.DevtoolsBatch:
+		if sess.stopped[idxDevtools] {
+			return
+		}
 		if err := w.pool.Write(sess.paths[idxDevtools], sess.header, data); err != nil {
+			if errors.Is(err, ErrSizeLimitExceeded) {
+				sess.stopped[idxDevtools] = true
+				w.log.Warn(ctx, "devtools exceeded max file size for session %d", batch.SessionID())
+				return
+			}
 			w.log.Error(ctx, "devtools write error: %s", err)
 		}
 	default:
