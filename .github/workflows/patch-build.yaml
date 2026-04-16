@@ -140,7 +140,7 @@ jobs:
 
             if grep -qx "$service" "$BACKEND_SERVICES_FILE"; then
                 # Backend service: use dedicated build script (Kafka queue from ee, no license)
-                cp "$MSAAS_REPO_FOLDER/backend/*" \
+                cp "$MSAAS_REPO_FOLDER"/backend/* \
                    "$MSAAS_REPO_FOLDER/openreplay/backend/"
                 cd "$MSAAS_REPO_FOLDER/openreplay/backend"
                 local build_cmd="IMAGE_TAG=$version DOCKER_RUNTIME=depot DOCKER_BUILD_ARGS=--push ARCH=$arch DOCKER_REPO=$DOCKER_REPO_ARM PUSH_IMAGE=0 bash build.sh nil $service"
