@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v9"
 )
 
 type elasticsearchClient struct{}
