@@ -66,6 +66,13 @@ jobs:
         git config --unset http.https://github.com/.extraheader
         git remote set-url origin https://x-access-token:${{ secrets.ACTIONS_COMMMIT_TOKEN }}@github.com/${{ github.repository }}.git
 
+    - name: Log input parameters
+      run: |
+        echo "===== Workflow Input Parameters ====="
+        echo "Services: ${{ github.event.inputs.services }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "===================================="
+
     - name: Build
       id: build-image
       env:

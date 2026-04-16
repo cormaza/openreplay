@@ -100,6 +100,14 @@ jobs:
     - name: Define Branch Name
       run: echo "BRANCH_NAME=${{inputs.branch}}" >> $GITHUB_ENV
 
+    - name: Log input parameters
+      run: |
+        echo "===== Workflow Input Parameters ====="
+        echo "Services: ${{ github.event.inputs.services }}"
+        echo "Tag: ${{ github.event.inputs.tag }}"
+        echo "Branch: ${{ github.event.inputs.branch }}"
+        echo "===================================="
+
     - name: Build
       id: build-image
       env:
