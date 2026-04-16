@@ -90,6 +90,10 @@ const (
 	DEV string = "/devtools.mob"
 )
 
+func IsNotExist(err error) bool {
+	return strings.Contains(err.Error(), "no such file or directory")
+}
+
 func (u *uploaderImpl) uploadSession(payload interface{}) {
 	task := payload.(*uploadTask)
 	ctx := task.ctx
@@ -104,12 +108,14 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 	}
 
 	var wg sync.WaitGroup
+	var failedUpload [2]bool
+	var uploadErrors [4]string
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := uploadFn(sid+DEV, filePath+"devtools"); err != nil && !os.IsNotExist(err) {
-			u.log.Error(ctx, "failed to upload devtools for session %d: %s", task.sessionID, err)
+		if err := uploadFn(sid+DEV, filePath+"devtools"); err != nil && !IsNotExist(err) {
+			uploadErrors[3] = err.Error()
 		}
 	}()
 
@@ -118,27 +124,36 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"s", filePath+"s"); err != nil && !os.IsNotExist(err) {
-				u.log.Error(ctx, "failed to upload dom start for session %d: %s", task.sessionID, err)
+			if err := uploadFn(sid+DOM+"s", filePath+"s"); err != nil {
+				failedUpload[1] = true
+				if !IsNotExist(err) {
+					uploadErrors[1] = err.Error()
+				}
 			}
 		}()
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"e", filePath+"e"); err != nil && !os.IsNotExist(err) {
-				u.log.Error(ctx, "failed to upload dom end for session %d: %s", task.sessionID, err)
+			if err := uploadFn(sid+DOM+"e", filePath+"e"); err != nil && !IsNotExist(err) {
+				uploadErrors[2] = err.Error()
 			}
 		}()
 	} else {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"s", filePath); err != nil && !os.IsNotExist(err) {
-				u.log.Error(ctx, "failed to upload dom for session %d: %s", task.sessionID, err)
+			if err := uploadFn(sid+DOM+"s", filePath); err != nil {
+				failedUpload[0] = true
+				if !IsNotExist(err) {
+					uploadErrors[0] = err.Error()
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+	if failedUpload[0] && failedUpload[1] {
+		u.log.Error(ctx, "failed to upload session %d, errors: %s", task.sessionID, strings.Join(uploadErrors[:], ","))
+	}
 }
 
 func (u *uploaderImpl) Clean(ctx context.Context, sessionID uint64) (err error) {
