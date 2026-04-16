@@ -1,3 +1,7 @@
+## 18.0.1
+
+- preserve per-message timestamps in protocol v2 batches (separate for each assets/devtools/analytics) to prevent overwriting ts per batch
+
 ## 18.0.0
 
 - introduce batch splitting (assets and analytics data are sent separately for faster backend processing times)

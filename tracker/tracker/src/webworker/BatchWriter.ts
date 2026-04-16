@@ -20,10 +20,13 @@ export default class BatchWriter {
   private analyticsMessages: Message[] = []
   private firstAssetIndex = 0
   private firstAssetTimestamp = 0
+  private lastAssetTimestamp = 0
   private firstDevtoolsIndex = 0
   private firstDevtoolsTimestamp = 0
+  private lastDevtoolsTimestamp = 0
   private firstAnalyticsIndex = 0
   private firstAnalyticsTimestamp = 0
+  private lastAnalyticsTimestamp = 0
   private protocolVersion = 1
 
   constructor(
@@ -125,6 +128,10 @@ export default class BatchWriter {
         if (this.assetMessages.length === 0) {
           this.firstAssetIndex = this.nextIndex
           this.firstAssetTimestamp = this.timestamp
+          this.lastAssetTimestamp = this.timestamp
+        } else if (this.timestamp !== this.lastAssetTimestamp) {
+          this.assetMessages.push([Messages.Type.Timestamp, this.timestamp] as unknown as Message)
+          this.lastAssetTimestamp = this.timestamp
         }
         this.assetMessages.push(message)
         this.nextIndex++
@@ -134,6 +141,10 @@ export default class BatchWriter {
         if (this.devtoolsMessages.length === 0) {
           this.firstDevtoolsIndex = this.nextIndex
           this.firstDevtoolsTimestamp = this.timestamp
+          this.lastDevtoolsTimestamp = this.timestamp
+        } else if (this.timestamp !== this.lastDevtoolsTimestamp) {
+          this.devtoolsMessages.push([Messages.Type.Timestamp, this.timestamp] as unknown as Message)
+          this.lastDevtoolsTimestamp = this.timestamp
         }
         this.devtoolsMessages.push(message)
         this.nextIndex++
@@ -143,6 +154,10 @@ export default class BatchWriter {
         if (this.analyticsMessages.length === 0) {
           this.firstAnalyticsIndex = this.nextIndex
           this.firstAnalyticsTimestamp = this.timestamp
+          this.lastAnalyticsTimestamp = this.timestamp
+        } else if (this.timestamp !== this.lastAnalyticsTimestamp) {
+          this.analyticsMessages.push([Messages.Type.Timestamp, this.timestamp] as unknown as Message)
+          this.lastAnalyticsTimestamp = this.timestamp
         }
         this.analyticsMessages.push(message)
         this.nextIndex++
@@ -201,6 +216,7 @@ export default class BatchWriter {
       }
       this.onBatch(assetBatch, skipCompression, 'assets')
       this.assetMessages.length = 0
+      this.lastAssetTimestamp = 0
     }
 
     if (hasDevtools) {
@@ -210,6 +226,7 @@ export default class BatchWriter {
       }
       this.onBatch(devtoolsBatch, skipCompression, 'devtools')
       this.devtoolsMessages.length = 0
+      this.lastDevtoolsTimestamp = 0
     }
 
     if (hasAnalytics) {
@@ -219,6 +236,7 @@ export default class BatchWriter {
       }
       this.onBatch(analyticsBatch, skipCompression, 'analytics')
       this.analyticsMessages.length = 0
+      this.lastAnalyticsTimestamp = 0
     }
 
     this.prepared = false
@@ -270,6 +288,9 @@ export default class BatchWriter {
     this.assetMessages.length = 0
     this.devtoolsMessages.length = 0
     this.analyticsMessages.length = 0
+    this.lastAssetTimestamp = 0
+    this.lastDevtoolsTimestamp = 0
+    this.lastAnalyticsTimestamp = 0
     this.prepared = false
   }
 }
