@@ -1,9 +1,11 @@
 package uaparser
 
 import (
+	"os"
 	"strings"
 
 	"github.com/ua-parser/uap-go/uaparser"
+	"gopkg.in/yaml.v3"
 )
 
 type UAParser struct {
@@ -11,7 +13,15 @@ type UAParser struct {
 }
 
 func NewUAParser(regexFile string) (*UAParser, error) {
-	p, err := uaparser.New(regexFile)
+	data, err := os.ReadFile(regexFile)
+	if err != nil {
+		return nil, err
+	}
+	var def uaparser.RegexDefinitions
+	if err := yaml.Unmarshal(data, &def); err != nil {
+		return nil, err
+	}
+	p, err := uaparser.New(uaparser.WithRegexDefinitions(def))
 	if err != nil {
 		return nil, err
 	}
