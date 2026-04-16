@@ -16,6 +16,7 @@ type Config struct {
 	redis.Redis
 	objectstorage.ObjectsConfig
 	common.HTTP
+	TokenSecret          string        `env:"TOKEN_SECRET,required"`
 	TopicRawWeb          string        `env:"TOPIC_RAW_WEB,required"`
 	TopicRawMobile       string        `env:"TOPIC_RAW_IOS,required"`
 	TopicRawImages       string        `env:"TOPIC_RAW_IMAGES,required"`

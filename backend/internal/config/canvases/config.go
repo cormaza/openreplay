@@ -14,6 +14,7 @@ type Config struct {
 	redis.Redis
 	common.Postgres
 	objectstorage.ObjectsConfig
+	TokenSecret        string `env:"TOKEN_SECRET,required"`
 	FSDir              string `env:"FS_DIR,required"`
 	CanvasDir          string `env:"CANVAS_DIR,default=canvas"`
 	TopicCanvasImages  string `env:"TOPIC_CANVAS_IMAGES,required"`  // For canvas images and sessionEnd events from ender

@@ -104,7 +104,6 @@ type HTTP struct {
 	JWTExpiration           time.Duration `env:"JWT_EXPIRATION,default=3600s"`
 	JWTIssuer               string        `env:"JWT_ISSUER,default=openreplay"`
 	FileSizeLimit           int64         `env:"FILE_SIZE_LIMIT,default=10000000"`
-	TokenSecret             string        `env:"TOKEN_SECRET,required"`
 }
 
 type RateLimiter struct {
