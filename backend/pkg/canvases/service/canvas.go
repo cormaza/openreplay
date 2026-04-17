@@ -193,7 +193,9 @@ func (v *ImageStorage) packCanvas(payload interface{}) {
 	path := filepath.Join(task.path, task.name)
 	key := fmt.Sprintf("%d/%s.zst", task.sessionID, task.name)
 	if err := v.streamZstdToS3(key, path); err != nil {
-		v.log.Fatal(task.ctx, "can't upload canvas, name: %s, err: %s", task.name, err)
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			v.log.Fatal(task.ctx, "can't upload canvas, name: %s, err: %s", task.name, err)
+		}
 		return
 	}
 	v.metrics.IncreaseTotalCreatedArchives()
