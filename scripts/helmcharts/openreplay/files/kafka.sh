@@ -15,9 +15,9 @@ topics=(
     "canvas-trigger"
     "mobile-trigger"
     "cache"
+    "raw-assets"
     "analytics"
     "raw-analytics"
-    "storage-failover"
     "quickwit"
     "video-replays"
 )
