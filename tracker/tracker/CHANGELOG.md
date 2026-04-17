@@ -1,3 +1,7 @@
+## 18.0.2
+
+- this update pulls fixes from previous version (17.2.9)
+
 ## 18.0.1
 
 - preserve per-message timestamps in protocol v2 batches (separate for each assets/devtools/analytics) to prevent overwriting ts per batch
@@ -5,6 +9,11 @@
 ## 18.0.0
 
 - introduce batch splitting (assets and analytics data are sent separately for faster backend processing times)
+
+## 17.2.7-17.2.9
+
+- fixes directed towards child iframe stability
+- fixes for libraries that use emotion-js (i.e MUI)
 
 ## 17.2.6
 
