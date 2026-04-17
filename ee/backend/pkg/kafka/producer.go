@@ -7,8 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"openreplay/backend/pkg/env"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 type Producer struct {
@@ -23,10 +24,10 @@ func NewProducer(messageSizeLimit int, useBatch bool) *Producer {
 		"security.protocol":                     "plaintext",
 		"go.batch.producer":                     useBatch,
 		"message.max.bytes":                     messageSizeLimit, // should be synced with broker config
-		"linger.ms":                             1000,
-		"queue.buffering.max.ms":                1000,
-		"batch.num.messages":                    1000,
-		"queue.buffering.max.messages":          1000,
+		"linger.ms":                             int(env.Uint64Default("KAFKA_LINGER_MS", 1000)),
+		"batch.num.messages":                    int(env.Uint64Default("KAFKA_BATCH_NUM_MESSAGES", 1000)),
+		"queue.buffering.max.ms":                int(env.Uint64Default("KAFKA_QUEUE_BUFFERING_MAX_MS", 1000)),
+		"queue.buffering.max.messages":          int(env.Uint64Default("KAFKA_QUEUE_BUFFERING_MAX_MESSAGES", 1000)),
 		"retries":                               3,
 		"retry.backoff.ms":                      100,
 		"max.in.flight.requests.per.connection": 1,
