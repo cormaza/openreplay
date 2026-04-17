@@ -43,6 +43,10 @@ export async function requestEFSDom(sessionId: string) {
   return await requestEFSMobFile(`${sessionId}/dom.mob`);
 }
 
+export async function requestSecondEFSDom(sessionId: string) {
+  return await requestEFSMobFile(`${sessionId}/dom.mob?end`);
+}
+
 export async function requestEFSDevtools(sessionId: string) {
   return await requestEFSMobFile(`${sessionId}/devtools.mob`);
 }

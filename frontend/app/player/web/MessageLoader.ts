@@ -14,6 +14,7 @@ import {
   loadFiles,
   requestEFSDevtools,
   requestEFSDom,
+  requestSecondEFSDom,
   requestTarball,
 } from './network/loadFiles';
 
@@ -427,8 +428,12 @@ export default class MessageLoader {
 
   loadEFSMobs = async () => {
     this.store.update({ domLoading: true, devtoolsLoading: true });
-    const efsDomFilePromise = requestEFSDom(this.session.sessionId);
-    const efsDevtoolsFilePromise = requestEFSDevtools(this.session.sessionId);
+
+    const [domData, secondDomData, devtoolsData] = await Promise.allSettled([
+      requestEFSDom(this.session.sessionId),
+      requestSecondEFSDom(this.session.sessionId),
+      requestEFSDevtools(this.session.sessionId),
+    ]);
 
     const domParser = this.createNewParser(
       false,
@@ -440,16 +445,20 @@ export default class MessageLoader {
       this.processMessages,
       'devtoolsEFS',
     );
-    const [domData, devtoolsData] = await Promise.allSettled([
-      efsDomFilePromise,
-      efsDevtoolsFilePromise,
-    ]);
 
-    const parseDomPromise: Promise<any> =
-      domData.status === 'fulfilled'
-        ? domParser(domData.value)
-        : Promise.reject('No dom file in EFS');
-    const parseDevtoolsPromise: Promise<any> =
+    const parseDomPromise: Promise<void> = (async () => {
+      if (domData.status !== 'fulfilled') {
+        throw 'No dom file in EFS';
+      }
+      await domParser(domData.value);
+      if (secondDomData.status === 'fulfilled') {
+        await domParser(secondDomData.value);
+      } else {
+        console.warn('second EFS dom file skipped');
+      }
+    })();
+
+    const parseDevtoolsPromise: Promise<void> =
       devtoolsData.status === 'fulfilled'
         ? devtoolsParser(devtoolsData.value)
         : Promise.reject('No devtools file in EFS');
