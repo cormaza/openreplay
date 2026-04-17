@@ -8,6 +8,9 @@ efsCleaner:
   retention: 1
   # This value is the new convention, and has priority.
   # retentionHours: 12
+  # Seconds to sleep between each session rm -rf (throttles EBS IOPS)
+  # 0.1 = ~10 sessions/sec, each rm -rf generates its own IOPS burst
+  throttleInterval: "0.1"
   pvc:
     # This can be either persistentVolumeClaim or hostPath.
     # In case of pvc, you'll have to provide the pvc name.
