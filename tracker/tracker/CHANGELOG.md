@@ -1,3 +1,7 @@
+## 18.0.3
+
+- bump network proxy to 1.2.3 (fixes issues with gql request parsing)
+
 ## 18.0.2
 
 - this update pulls fixes from previous version (17.2.9)
