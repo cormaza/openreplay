@@ -52,7 +52,7 @@ func New(cfg *config.Config, log logger.Logger, objStorage objectstorage.ObjectS
 		objStorage: objStorage,
 		metrics:    metrics,
 	}
-	s.uploaderPool = pool.NewPool(64, 64, s.uploadSession)
+	s.uploaderPool = pool.NewPool(cfg.NumberOfWorkers, cfg.NumberOfWorkers, s.uploadSession)
 	return s, nil
 }
 

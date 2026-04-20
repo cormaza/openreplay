@@ -19,7 +19,7 @@ type Config struct {
 	TopicFailover        string        `env:"TOPIC_STORAGE_FAILOVER"`
 	DeleteTimeout        time.Duration `env:"DELETE_TIMEOUT,default=48h"`
 	ProducerCloseTimeout int           `env:"PRODUCER_CLOSE_TIMEOUT,default=15000"`
-	UseFailover          bool          `env:"USE_FAILOVER,default=false"`
+	NumberOfWorkers      int           `env:"NUMBER_OF_STORAGE_WORKERS,default=64"`
 }
 
 func New(log logger.Logger) *Config {
