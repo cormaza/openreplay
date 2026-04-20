@@ -26,9 +26,10 @@ type Uploader interface {
 }
 
 type uploadTask struct {
-	ctx           context.Context
-	sessionID     uint64
-	encryptionKey string
+	ctx            context.Context
+	sessionID      uint64
+	encryptionKey  string
+	saveMobeAsMobs bool
 }
 
 type uploaderImpl struct {
@@ -57,16 +58,23 @@ func New(cfg *config.Config, log logger.Logger, objStorage objectstorage.ObjectS
 }
 
 var ErrSessionNotFound = errors.New("session files not found locally")
+var ErrSessionWithoutFirstPart = errors.New("no mobs file")
 
 func (u *uploaderImpl) Upload(ctx context.Context, sessionID uint64, encryptionKey string) error {
 	filePath := u.cfg.FSDir + "/" + strconv.FormatUint(sessionID, 10)
+	saveMobeAsMobs := false
 	if err := checkMobFilePresence(filePath); err != nil {
-		return err
+		if !errors.Is(err, ErrSessionWithoutFirstPart) {
+			return err
+		}
+		saveMobeAsMobs = true
+		u.log.Warn(ctx, "session without first part: %d", sessionID)
 	}
 	u.uploaderPool.Submit(&uploadTask{
-		ctx:           ctx,
-		sessionID:     sessionID,
-		encryptionKey: encryptionKey,
+		ctx:            ctx,
+		sessionID:      sessionID,
+		encryptionKey:  encryptionKey,
+		saveMobeAsMobs: saveMobeAsMobs,
 	})
 	return nil
 }
@@ -81,6 +89,10 @@ func checkMobFilePresence(filePath string) error {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return err
+	}
+	// Hack: we'll use sid(e) file as a single dom file
+	if _, err := os.Stat(filePath + "e"); err == nil {
+		return ErrSessionWithoutFirstPart
 	}
 	return ErrSessionNotFound
 }
@@ -120,7 +132,15 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 	}()
 
 	// new sessions will have {sid}s and {sid}e, old sessions have a single {sid} file
-	if _, statErr := os.Stat(filePath + "s"); statErr == nil {
+	if task.saveMobeAsMobs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := uploadFn(sid+DOM+"s", filePath+"e"); err != nil {
+				u.log.Error(ctx, "failed to upload mobe as mobs, session: %d, err: %v", task.sessionID, err)
+			}
+		}()
+	} else if _, statErr := os.Stat(filePath + "s"); statErr == nil {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
