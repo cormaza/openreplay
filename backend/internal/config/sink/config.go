@@ -17,7 +17,6 @@ type Config struct {
 	FsDir                string        `env:"FS_DIR,required"`
 	FsUlimit             uint16        `env:"FS_ULIMIT,required"`
 	FileBuffer           int           `env:"FILE_BUFFER,default=16384"`
-	SyncTimeout          int           `env:"SYNC_TIMEOUT,default=5"`
 	GroupSink            string        `env:"GROUP_SINK,required"`
 	TopicRawWeb          string        `env:"TOPIC_RAW_WEB,required"`
 	TopicRawMobile       string        `env:"TOPIC_RAW_IOS,required"`
@@ -27,6 +26,8 @@ type Config struct {
 	ProducerCloseTimeout int           `env:"PRODUCER_CLOSE_TIMEOUT,default=15000"`
 	FileSplitTime        time.Duration `env:"FILE_SPLIT_TIME,default=15s"`
 	MaxFileSize          int64         `env:"MAX_FILE_SIZE,default=524288000"`
+	SyncWorkers          int           `env:"SYNC_WORKERS,default=16"`
+	SyncInterval         time.Duration `env:"SYNC_INTERVAL,default=30s"`
 }
 
 func New(log logger.Logger) *Config {

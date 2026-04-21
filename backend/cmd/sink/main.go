@@ -69,7 +69,7 @@ func main() {
 	projManager := projects.New(log, pgConn, redisClient, dbMetric)
 	sessManager := sessions.New(log, pgConn, projManager, redisClient, dbMetric)
 
-	filePool := sessionwriter.NewFilePool(log, int(cfg.FsUlimit), cfg.FileBuffer, cfg.MaxFileSize)
+	filePool := sessionwriter.NewFilePool(log, int(cfg.FsUlimit), cfg.FileBuffer, cfg.MaxFileSize, cfg.SyncWorkers)
 	mobWriter := sessionwriter.NewMobWriter(log, sessManager, filePool, cfg.FsDir, cfg.FileSplitTime)
 
 	assetMessageHandler := assetscache.New(log, &cfg.Cache, rewriter, producer, sinkMetrics)
@@ -92,9 +92,10 @@ func main() {
 		false,
 		cfg.MessageSizeLimit,
 		func(t types.RebalanceType, partitions []uint64) {
-			s := time.Now()
-			mobWriter.Sync()
-			log.Info(ctx, "manual sync finished, dur: %d", time.Now().Sub(s).Milliseconds())
+			stats := mobWriter.Sync()
+			log.Info(ctx, "manual sync finished, fds=%d/%d, synced=%d, size=%.2fMB, dur=%dms",
+				stats.OpenFiles, stats.FilesLimit, stats.FilesSynced,
+				float64(stats.BytesSynced)/(1024*1024), stats.Duration.Milliseconds())
 		},
 		types.NoReadBackGap,
 	)
@@ -110,7 +111,7 @@ func main() {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
-	tickInfo := time.Tick(30 * time.Second)
+	tickInfo := time.Tick(cfg.SyncInterval)
 
 	for {
 		select {
@@ -126,11 +127,13 @@ func main() {
 			consumer.Close()
 			os.Exit(0)
 		case <-tickInfo:
+			stats := mobWriter.Sync()
+			log.Info(ctx, "sync: fds=%d/%d, synced=%d, size=%.2fMB, dur=%dms",
+				stats.OpenFiles, stats.FilesLimit, stats.FilesSynced,
+				float64(stats.BytesSynced)/(1024*1024), stats.Duration.Milliseconds())
 			if err := consumer.Commit(); err != nil {
 				log.Error(ctx, "can't commit messages: %s", err)
 			}
-			mobWriter.Sync()
-			log.Info(ctx, "writer: %s", mobWriter.Info())
 		default:
 			err := consumer.ConsumeNext()
 			if err != nil {

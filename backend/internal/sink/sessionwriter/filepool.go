@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"openreplay/backend/pkg/logger"
@@ -13,33 +14,45 @@ import (
 
 var ErrSizeLimitExceeded = errors.New("file size limit exceeded")
 
+type SyncStats struct {
+	Duration    time.Duration
+	FilesSynced int
+	BytesSynced int64
+	OpenFiles   int
+	FilesLimit  int
+}
+
 type fileEntry struct {
-	path    string
-	file    *os.File
-	buffer  *bufio.Writer
-	updated bool
-	size    int64
+	path           string
+	file           *os.File
+	buffer         *bufio.Writer
+	updated        bool
+	size           int64
+	bytesSinceSync int64
 }
 
 func (e *fileEntry) write(data []byte) error {
 	e.updated = true
 	e.size += int64(len(data))
+	e.bytesSinceSync += int64(len(data))
 	_, err := e.buffer.Write(data)
 	return err
 }
 
-func (e *fileEntry) sync() error {
+func (e *fileEntry) sync() (int64, error) {
 	if !e.updated {
-		return nil
+		return 0, nil
 	}
 	if err := e.buffer.Flush(); err != nil {
-		return err
+		return 0, err
 	}
 	if err := e.file.Sync(); err != nil {
-		return err
+		return 0, err
 	}
 	e.updated = false
-	return nil
+	n := e.bytesSinceSync
+	e.bytesSinceSync = 0
+	return n, nil
 }
 
 func (e *fileEntry) close() error {
@@ -56,9 +69,13 @@ type FilePool struct {
 	entries     map[string]*fileEntry
 	lastUse     map[string]int64
 	maxFileSize int64
+	syncWorkers int
 }
 
-func NewFilePool(log logger.Logger, limit, bufSize int, maxFileSize int64) *FilePool {
+func NewFilePool(log logger.Logger, limit, bufSize int, maxFileSize int64, syncWorkers int) *FilePool {
+	if syncWorkers <= 0 {
+		syncWorkers = 16
+	}
 	return &FilePool{
 		log:         log,
 		limit:       limit,
@@ -66,6 +83,7 @@ func NewFilePool(log logger.Logger, limit, bufSize int, maxFileSize int64) *File
 		entries:     make(map[string]*fileEntry, limit),
 		lastUse:     make(map[string]int64, limit),
 		maxFileSize: maxFileSize,
+		syncWorkers: syncWorkers,
 	}
 }
 
@@ -137,12 +155,64 @@ func (p *FilePool) evictOne() {
 	delete(p.lastUse, evictPath)
 }
 
-func (p *FilePool) Sync() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *FilePool) Sync() SyncStats {
+	start := time.Now()
 
-	for _, entry := range p.entries {
-		_ = entry.sync()
+	p.mu.Lock()
+	dirty := make([]*fileEntry, 0, len(p.entries))
+	for _, e := range p.entries {
+		if e.updated {
+			dirty = append(dirty, e)
+		}
+	}
+	openFiles := len(p.entries)
+	p.mu.Unlock()
+
+	if len(dirty) == 0 {
+		return SyncStats{
+			Duration:   time.Since(start),
+			OpenFiles:  openFiles,
+			FilesLimit: p.limit,
+		}
+	}
+
+	workers := p.syncWorkers
+	if len(dirty) < workers {
+		workers = len(dirty)
+	}
+
+	var filesSynced int64
+	var bytesSynced int64
+	var wg sync.WaitGroup
+	jobs := make(chan *fileEntry)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for e := range jobs {
+				n, err := e.sync()
+				if err != nil {
+					continue
+				}
+				if n > 0 {
+					atomic.AddInt64(&filesSynced, 1)
+					atomic.AddInt64(&bytesSynced, n)
+				}
+			}
+		}()
+	}
+	for _, e := range dirty {
+		jobs <- e
+	}
+	close(jobs)
+	wg.Wait()
+
+	return SyncStats{
+		Duration:    time.Since(start),
+		FilesSynced: int(filesSynced),
+		BytesSynced: bytesSynced,
+		OpenFiles:   openFiles,
+		FilesLimit:  p.limit,
 	}
 }
 

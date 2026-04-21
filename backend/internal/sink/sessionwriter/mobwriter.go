@@ -3,7 +3,6 @@ package sessionwriter
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -134,8 +133,8 @@ func (w *MobWriter) Close(sid uint64) {
 	}
 }
 
-func (w *MobWriter) Sync() {
-	w.pool.Sync()
+func (w *MobWriter) Sync() SyncStats {
+	return w.pool.Sync()
 }
 
 func (w *MobWriter) Stop() {
@@ -147,8 +146,4 @@ func (w *MobWriter) Stop() {
 		w.sessions.Delete(key)
 		return true
 	})
-}
-
-func (w *MobWriter) Info() string {
-	return fmt.Sprintf("open FDs: %d/%d", w.pool.OpenCount(), w.pool.limit)
 }
