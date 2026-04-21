@@ -1554,7 +1554,7 @@ export default class App {
           ...this.getTrackerInfo(),
           timestamp,
           doNotRecord: false,
-          bufferDiff: timestamp - this.coldStartTs,
+          bufferDiff: this.coldStartTs ? timestamp - this.coldStartTs : 0,
           userID: this.session.getInfo().userID,
           token: isNewSession ? undefined : sessionToken,
           deviceMemory,
