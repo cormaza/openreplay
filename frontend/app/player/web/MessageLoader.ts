@@ -447,14 +447,17 @@ export default class MessageLoader {
     );
 
     const parseDomPromise: Promise<void> = (async () => {
-      if (domData.status !== 'fulfilled') {
-        throw 'No dom file in EFS';
+      if (domData.status === 'fulfilled') {
+        await domParser(domData.value);
       }
-      await domParser(domData.value);
       if (secondDomData.status === 'fulfilled') {
         await domParser(secondDomData.value);
-      } else {
-        console.warn('second EFS dom file skipped');
+      }
+      if (
+        domData.status !== 'fulfilled' &&
+        secondDomData.status !== 'fulfilled'
+      ) {
+        throw 'No dom files in EFS';
       }
     })();
 
