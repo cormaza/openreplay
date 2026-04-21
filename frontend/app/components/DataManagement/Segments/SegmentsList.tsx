@@ -117,6 +117,18 @@ function SegmentsList({
       render: (filters: any[]) => (filters ? filters.length : 0),
     },
     {
+      title: t('# Sessions'),
+      dataIndex: 'sessionsCount',
+      key: 'sessionsCount',
+      render: (count: number) => (count ?? 0).toLocaleString(),
+    },
+    {
+      title: t('# Users'),
+      dataIndex: 'usersCount',
+      key: 'usersCount',
+      render: (count: number) => (count ?? 0).toLocaleString(),
+    },
+    {
       title: t('Updated At'),
       dataIndex: 'updatedAt',
       key: 'updatedAt',

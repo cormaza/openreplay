@@ -340,7 +340,7 @@ function SegmentPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex flex-col gap-2 px-4 py-3 w-fit">
           <span className="font-semibold">{t('Visibility')}</span>
           {/* @ts-ignore */}
           <Tooltip
@@ -356,7 +356,7 @@ function SegmentPage() {
               options={[
                 {
                   label: (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 text-gray-medium">
                       <Users size={14} />
                       <span>{t('Team')}</span>
                     </div>
@@ -365,7 +365,7 @@ function SegmentPage() {
                 },
                 {
                   label: (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 text-gray-medium">
                       <Lock size={14} />
                       <span>{t('Personal')}</span>
                     </div>
@@ -376,6 +376,29 @@ function SegmentPage() {
             />
           </Tooltip>
         </div>
+        {!isNew && (
+          <div className="flex flex-col gap-2 px-4 py-3 border-b">
+            <span className="font-semibold">{t('Stats')}</span>
+            <div className="flex gap-2 items-center">
+              <div className="rounded-lg border px-3 py-2 flex flex-col min-w-32">
+                <span className="text-xs text-disabled-text">
+                  {t('# Users')}
+                </span>
+                <span className="font-semibold">
+                  {(resolved?.usersCount ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="rounded-lg border px-3 py-2 flex flex-col min-w-32">
+                <span className="text-xs text-disabled-text">
+                  {t('# Sessions')}
+                </span>
+                <span className="font-semibold">
+                  {(resolved?.sessionsCount ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={'rounded-lg border bg-white flex flex-col'}>

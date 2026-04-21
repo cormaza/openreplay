@@ -9,6 +9,8 @@ export class Segment {
   createdAt: number;
   isPublic: boolean;
   userId?: number;
+  sessionsCount: number = 0;
+  usersCount: number = 0;
 
   constructor(data?: Partial<ApiSegment>) {
     if (data) {
@@ -22,6 +24,8 @@ export class Segment {
       this.updatedAt = data.updatedAt || data.createdAt || 0;
       this.createdAt = data.createdAt || 0;
       this.userId = data.userId;
+      this.sessionsCount = data.sessionsCount ?? 0;
+      this.usersCount = data.usersCount ?? 0;
     }
   }
 }
@@ -33,6 +37,8 @@ interface ApiSegment {
   userId?: number;
   createdAt?: number;
   updatedAt?: number;
+  sessionsCount?: number;
+  usersCount?: number;
   data?: { filters: Record<string, unknown>[] };
   filter?: { filters: Record<string, unknown>[] };
 }
@@ -99,17 +105,20 @@ export function fetchSegments(params: SearchSegmentsParams): Promise<{
   segments: Segment[];
   total: number;
 }> {
+  const offset = params.limit * (params.page - 1);
   return client
-    .get('/PROJECT_ID/sessions/search/saved')
+    .get(
+      `/PROJECT_ID/sessions/search/saved?limit=${params.limit}&offset=${offset}`,
+    )
     .then((res) => res.json())
     .then((json) => {
       const rawList: ApiSegment[] = json.data?.data || json.data || [];
+      const total =
+        typeof json.data?.total === 'number' ? json.data.total : rawList.length;
       const filtered = byNameFilter(rawList, params.name);
       const all = filtered.map((s) => new Segment(s));
       const sorted = sortSegments(all, params.sortBy, params.sortOrder);
-      const start = (params.page - 1) * params.limit;
-      const page = sorted.slice(start, start + params.limit);
-      return { segments: page, total: sorted.length };
+      return { segments: sorted, total };
     });
 }
 
