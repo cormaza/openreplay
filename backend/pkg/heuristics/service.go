@@ -8,7 +8,6 @@ import (
 	"openreplay/backend/internal/config/heuristics"
 	"openreplay/backend/internal/service"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	heuristicMetrics "openreplay/backend/pkg/metrics/heuristics"
 	"openreplay/backend/pkg/queue/types"
@@ -21,13 +20,12 @@ type heuristicsImpl struct {
 	producer types.Producer
 	consumer types.Consumer
 	events   Events
-	mm       memory.Manager
 	metrics  heuristicMetrics.Heuristics
 	done     chan struct{}
 	finished chan struct{}
 }
 
-func New(log logger.Logger, cfg *heuristics.Config, p types.Producer, c types.Consumer, e Events, mm memory.Manager, metrics heuristicMetrics.Heuristics) service.Interface {
+func New(log logger.Logger, cfg *heuristics.Config, p types.Producer, c types.Consumer, e Events, metrics heuristicMetrics.Heuristics) service.Interface {
 	s := &heuristicsImpl{
 		log:      log,
 		ctx:      context.Background(),
@@ -35,7 +33,6 @@ func New(log logger.Logger, cfg *heuristics.Config, p types.Producer, c types.Co
 		producer: p,
 		consumer: c,
 		events:   e,
-		mm:       mm,
 		metrics:  metrics,
 		done:     make(chan struct{}),
 		finished: make(chan struct{}),
@@ -71,9 +68,6 @@ func (h *heuristicsImpl) run() {
 			h.consumer.Close()
 			h.finished <- struct{}{}
 		default:
-			if !h.mm.HasFreeMemory() {
-				continue
-			}
 			if err := h.consumer.ConsumeNext(); err != nil {
 				h.log.Fatal(h.ctx, "error on consumption: %v", err)
 			}

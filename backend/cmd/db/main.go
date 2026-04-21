@@ -13,7 +13,6 @@ import (
 	"openreplay/backend/pkg/health"
 	"openreplay/backend/pkg/issues"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"
 	"openreplay/backend/pkg/metrics/database"
@@ -134,14 +133,8 @@ func main() {
 	}
 	defer sdkSaver.Stop()
 
-	// Init memory manager
-	memoryManager, err := memory.NewManager(log, cfg.MemoryLimitMB, cfg.MaxMemoryUsage)
-	if err != nil {
-		log.Fatal(ctx, "can't init memory manager: %s", err)
-	}
-
 	// Run service and wait for TERM signal
-	service := db.New(log, cfg, consumer, saver, memoryManager, sessManager)
+	service := db.New(log, cfg, consumer, saver, sessManager)
 	log.Info(ctx, "Db service started")
 	terminator.Wait(log, service)
 }

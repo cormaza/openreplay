@@ -15,7 +15,6 @@ import (
 	"openreplay/backend/pkg/db/postgres/pool"
 	"openreplay/backend/pkg/db/redis"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"
 	"openreplay/backend/pkg/metrics/database"
@@ -90,11 +89,6 @@ func main() {
 	cleanupDispatcher, err := cleanup.NewDispatcher(log, cfg, producer)
 	if err != nil {
 		log.Fatal(ctx, "can't init cleanup dispatcher: %s", err)
-	}
-
-	memoryManager, err := memory.NewManager(log, cfg.MemoryLimitMB, cfg.MaxMemoryUsage)
-	if err != nil {
-		log.Fatal(ctx, "can't init memory manager: %s", err)
 	}
 
 	log.Info(ctx, "Ender service started")
@@ -226,9 +220,6 @@ func main() {
 				log.Error(ctx, "can't commit messages with offset: %s", err)
 			}
 		default:
-			if !memoryManager.HasFreeMemory() {
-				continue
-			}
 			if err := consumer.ConsumeNext(); err != nil {
 				log.Fatal(ctx, "error on consuming: %s", err)
 			}

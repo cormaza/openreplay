@@ -7,7 +7,6 @@ import (
 
 	"openreplay/backend/internal/service"
 	saver "openreplay/backend/pkg/connector"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/queue/types"
 )
 
@@ -15,10 +14,9 @@ type dbImpl struct {
 	cfg      *connector.Config
 	consumer types.Consumer
 	saver    *saver.Saver
-	mm       memory.Manager
 }
 
-func New(cfg *connector.Config, consumer types.Consumer, saver *saver.Saver, mm memory.Manager) service.Interface {
+func New(cfg *connector.Config, consumer types.Consumer, saver *saver.Saver) service.Interface {
 	s := &dbImpl{
 		cfg:      cfg,
 		consumer: consumer,
@@ -38,9 +36,6 @@ func (d *dbImpl) run() {
 		case msg := <-d.consumer.Rebalanced():
 			log.Println(msg)
 		default:
-			if !d.mm.HasFreeMemory() {
-				continue
-			}
 			if err := d.consumer.ConsumeNext(); err != nil {
 				log.Fatalf("Error on consumption: %v", err)
 			}

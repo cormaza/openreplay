@@ -11,7 +11,6 @@ import (
 	"openreplay/backend/pkg/health"
 	"openreplay/backend/pkg/heuristics"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"
 	heuristicsMetrics "openreplay/backend/pkg/metrics/heuristics"
@@ -71,15 +70,8 @@ func main() {
 		return consumer.Ping(ctx)
 	})
 
-	// Init memory manager
-	memoryManager, err := memory.NewManager(log, cfg.MemoryLimitMB, cfg.MaxMemoryUsage)
-	if err != nil {
-		log.Fatal(ctx, "can't init memory manager: %s", err)
-		return
-	}
-
 	// Run service and wait for TERM signal
-	service := heuristics.New(log, cfg, producer, consumer, events, memoryManager, heuristicsMetric)
+	service := heuristics.New(log, cfg, producer, consumer, events, heuristicsMetric)
 	log.Info(ctx, "Heuristics service started")
 	terminator.Wait(log, service)
 }

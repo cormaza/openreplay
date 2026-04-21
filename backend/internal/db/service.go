@@ -8,7 +8,6 @@ import (
 	"openreplay/backend/internal/db/datasaver"
 	"openreplay/backend/internal/service"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/queue/types"
 	"openreplay/backend/pkg/sessions"
 )
@@ -19,20 +18,18 @@ type dbImpl struct {
 	ctx      context.Context
 	consumer types.Consumer
 	saver    datasaver.Saver
-	mm       memory.Manager
 	sessions sessions.Sessions
 	done     chan struct{}
 	finished chan struct{}
 }
 
-func New(log logger.Logger, cfg *db.Config, consumer types.Consumer, saver datasaver.Saver, mm memory.Manager, sessions sessions.Sessions) service.Interface {
+func New(log logger.Logger, cfg *db.Config, consumer types.Consumer, saver datasaver.Saver, sessions sessions.Sessions) service.Interface {
 	s := &dbImpl{
 		log:      log,
 		cfg:      cfg,
 		ctx:      context.Background(),
 		consumer: consumer,
 		saver:    saver,
-		mm:       mm,
 		sessions: sessions,
 		done:     make(chan struct{}),
 		finished: make(chan struct{}),
@@ -58,9 +55,6 @@ func (d *dbImpl) run() {
 			d.consumer.Close()
 			d.finished <- struct{}{}
 		default:
-			if !d.mm.HasFreeMemory() {
-				continue
-			}
 			if err := d.consumer.ConsumeNext(); err != nil {
 				d.log.Fatal(d.ctx, "Error on consumption: %v", err)
 			}

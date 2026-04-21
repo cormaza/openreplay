@@ -13,7 +13,6 @@ import (
 	"openreplay/backend/pkg/db/postgres/pool"
 	"openreplay/backend/pkg/db/redis"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"
 	"openreplay/backend/pkg/metrics/database"
@@ -115,14 +114,8 @@ func main() {
 		types.NoReadBackGap,
 	)
 
-	// Init memory manager
-	memoryManager, err := memory.NewManager(log, cfg.MemoryLimitMB, cfg.MaxMemoryUsage)
-	if err != nil {
-		log.Fatal(ctx, "can't init memory manager: %s", err)
-	}
-
 	// Run service and wait for TERM signal
-	service := connector.New(cfg, consumer, dataSaver, memoryManager)
+	service := connector.New(cfg, consumer, dataSaver)
 	log.Info(ctx, "Connector service started")
 	terminator.Wait(log, service)
 }

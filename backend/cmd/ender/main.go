@@ -15,7 +15,6 @@ import (
 	"openreplay/backend/pkg/db/redis"
 	"openreplay/backend/pkg/health"
 	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/memory"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"
 	"openreplay/backend/pkg/metrics/database"
@@ -100,11 +99,6 @@ func main() {
 	h.Register("consumer", func(ctx context.Context) error {
 		return consumer.Ping(ctx)
 	})
-
-	memoryManager, err := memory.NewManager(log, cfg.MemoryLimitMB, cfg.MaxMemoryUsage)
-	if err != nil {
-		log.Fatal(ctx, "can't init memory manager: %s", err)
-	}
 
 	log.Info(ctx, "Ender service started")
 
@@ -216,9 +210,6 @@ func main() {
 				log.Error(ctx, "can't commit messages with offset: %s", err)
 			}
 		default:
-			if !memoryManager.HasFreeMemory() {
-				continue
-			}
 			if err := consumer.ConsumeNext(); err != nil {
 				log.Fatal(ctx, "error on consuming: %s", err)
 			}
