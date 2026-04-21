@@ -1,3 +1,7 @@
+## 18.0.4
+
+- fix bufferDiff on default starts (now will be 0)
+
 ## 18.0.3
 
 - bump network proxy to 1.2.3 (fixes issues with gql request parsing)
