@@ -603,6 +603,23 @@ class UserStore {
     }
   };
 
+  regenerateKey = async () => {
+    try {
+      const data = await userService.newApiKey();
+      runInAction(() => {
+        const nextKey = data?.apiKey;
+        if (typeof nextKey === 'string') {
+          this.account.apiKey = nextKey;
+        }
+      });
+      toast.success(this.t('API key regenerated'));
+      return data;
+    } catch (e: any) {
+      toast.error(e.message || this.t('Failed to regenerate API key'));
+      throw e;
+    }
+  };
+
   downgradeScope = async () => {
     try {
       await userService.changeScope(1);

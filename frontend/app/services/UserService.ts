@@ -224,4 +224,11 @@ export default class UserService {
       .then((response: { json: () => any }) => response.json())
       .then((response: { data: any }) => response.data || {});
   }
+
+  newApiKey() {
+    return this.client
+      .post('/client/new_api_key')
+      .then((response: { json: () => any }) => response.json())
+      .then((response: { data: any }) => response.data || {});
+  }
 }
