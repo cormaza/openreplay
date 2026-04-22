@@ -24,6 +24,7 @@ public class ORTrackerConnector: NSObject {
           debugImages: false
         )
         Openreplay.shared.serverURL = projectUrl ?? "https://api.openreplay.com/ingest"
+        Openreplay.shared.useTouchSwizzle()
         Openreplay.shared.start(projectKey: projectKey, options: options)
         print("Starting for \(options) \(projectKey) \(projectUrl ?? "no url")")
     }
@@ -45,6 +46,7 @@ public class ORTrackerConnector: NSObject {
           debugImages: false
         )
         Openreplay.shared.serverURL = projectUrl ?? "https://api.openreplay.com/ingest"
+        Openreplay.shared.useTouchSwizzle()
         Openreplay.shared.startSession(projectKey: projectKey, options: options)
         print("Starting for \(options) \(projectKey) \(projectUrl ?? "no url")")
     }

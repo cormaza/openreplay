@@ -13,33 +13,66 @@ class RnTrackerTouchViewManager: RCTViewManager {
   }
 }
 
-class RntrackerTouchView : UIView {
-  var touchStart: CGPoint?
+class RntrackerTouchView: UIView, UIGestureRecognizerDelegate {
+  private var touchStart: CGPoint?
 
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-    super.touchesBegan(touches, with: event)
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    setupRecognizers()
+  }
 
-    if let touch = touches.first {
-      touchStart = touch.location(in: self)
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    setupRecognizers()
+  }
+
+  private func setupRecognizers() {
+    let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
+    tap.cancelsTouchesInView = false
+    tap.delaysTouchesBegan = false
+    tap.delaysTouchesEnded = false
+    tap.delegate = self
+    addGestureRecognizer(tap)
+
+    let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+    pan.cancelsTouchesInView = false
+    pan.delaysTouchesBegan = false
+    pan.delaysTouchesEnded = false
+    pan.delegate = self
+    addGestureRecognizer(pan)
+  }
+
+  @objc private func handleTap(_ recognizer: UITapGestureRecognizer) {
+    let point = recognizer.location(in: self)
+    Analytics.shared.sendClick(label: "React-Native View", x: UInt64(point.x), y: UInt64(point.y))
+  }
+
+  @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
+    switch recognizer.state {
+    case .began:
+      touchStart = recognizer.location(in: self)
+    case .ended:
+      guard let startPoint = touchStart else { return }
+      let endPoint = recognizer.location(in: self)
+      touchStart = nil
+
+      let deltaX = endPoint.x - startPoint.x
+      let deltaY = endPoint.y - startPoint.y
+      let distance = sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      if distance > 10 {
+        let direction = abs(deltaX) > abs(deltaY) ? (deltaX > 0 ? "right" : "left") : (deltaY > 0 ? "down" : "up")
+        Analytics.shared.sendSwipe(label: "React-Native View", x: UInt64(endPoint.x), y: UInt64(endPoint.y), direction: direction)
+      }
+    case .cancelled, .failed:
+      touchStart = nil
+    default:
+      break
     }
   }
 
-  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-    super.touchesEnded(touches, with: event)
-
-    guard let touch = touches.first, let startPoint = touchStart else { return }
-    let endPoint = touch.location(in: self)
-
-    let deltaX = endPoint.x - startPoint.x
-    let deltaY = endPoint.y - startPoint.y
-
-    let distance = sqrt(deltaX * deltaX + deltaY * deltaY)
-
-    if distance > 10 {
-        let direction = abs(deltaX) > abs(deltaY) ? (deltaX > 0 ? "right" : "left") : (deltaY > 0 ? "down" : "up")
-        Analytics.shared.sendSwipe(label: "React-Native View", x: UInt64(endPoint.x), y: UInt64(endPoint.x), direction: direction)
-    } else {
-        Analytics.shared.sendClick(label: "React-Native View", x: UInt64(endPoint.x), y: UInt64(endPoint.y))
-    }
+  func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+    return true
   }
 }
