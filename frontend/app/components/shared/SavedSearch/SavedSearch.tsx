@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { Button, Tooltip, message, Space } from 'antd';
-import { Save, Share2, List } from 'lucide-react';
-import { useStore } from 'App/mstore';
+import { Button, Space, Tooltip, message } from 'antd';
+import { List, Save, Share2 } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
 import { useModal } from 'App/components/Modal';
+import { useStore } from 'App/mstore';
+
 import SaveSearchModal from '../SaveSearchModal/SaveSearchModal';
 import SavedSearchModal from './components/SavedSearchModal';
-import { useTranslation } from 'react-i18next';
 
 function SavedSearch() {
   const [showModal, setShowModal] = useState(false);
@@ -16,7 +18,11 @@ function SavedSearch() {
 
   const { showModal: showListModal } = useModal();
 
-  const isDisabled = searchStore.instance.filters.length === 0;
+  const hasSegmentsInSearch = searchStore.instance.filters.some(
+    (filter) => filter.category === 'segments',
+  );
+  const isDisabled =
+    searchStore.instance.filters.length === 0 || hasSegmentsInSearch;
   const { savedSearch } = searchStore;
   const isUpdating = savedSearch.exists();
   const currentUserId = userStore.account.id;
@@ -85,7 +91,9 @@ function SavedSearch() {
               isSharedSearch
                 ? t('Cannot modify shared segment')
                 : isDisabled
-                  ? t('Add an event or filter to save segment')
+                  ? t(
+                      "Add an event or filter to save segment (can't save segments)",
+                    )
                   : isUpdating
                     ? t('Update')
                     : t('Save Segment')

@@ -77,7 +77,6 @@ function SegmentPage() {
   }, [resolved, parsed]);
 
   const allFilterOptions = filterStore.getScopedCurrentProjectFilters([
-    'events',
     'sessions',
   ]);
   const eventOptions = allFilterOptions.filter(
