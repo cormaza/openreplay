@@ -90,6 +90,11 @@ func (w *MobWriter) HandleBatch(data []byte, batch *messages.BatchInfo) {
 	case messages.FullBatch, messages.PlayerBatch, messages.AssetsBatch:
 		if batch.DataTimestamp()-sess.startTime <= w.fileSplitTime.Milliseconds() {
 			if err := w.pool.Write(sess.paths[idxDomS], sess.header, data); err != nil {
+				if errors.Is(err, ErrSizeLimitExceeded) {
+					sess.stopped[idxDomS] = true
+					w.log.Warn(ctx, "domE exceeded max file size for session %d", batch.SessionID())
+					return
+				}
 				w.log.Error(ctx, "domS write error: %s", err)
 			}
 		} else {
