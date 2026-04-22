@@ -12,10 +12,12 @@ function ApiKeySettings() {
   const [revealed, setRevealed] = React.useState(false);
   const [regenerating, setRegenerating] = React.useState(false);
 
+  const isAdmin = userStore.isAdmin;
   const { apiKey } = userStore.account;
   const maskedKey = apiKey ? '•'.repeat(apiKey.length) : '';
 
   const onRegenerate = async () => {
+    if (!isAdmin) return;
     if (
       await confirm({
         header: 'Confirm',
@@ -51,7 +53,11 @@ function ApiKeySettings() {
         </div>
       </div>
       <div>
-        <Button onClick={onRegenerate} loading={regenerating}>
+        <Button
+          disabled={isAdmin}
+          onClick={onRegenerate}
+          loading={regenerating}
+        >
           {t('Regenerate')}
         </Button>
       </div>
