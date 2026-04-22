@@ -19,6 +19,10 @@ type PerformanceAggregator struct {
 	sumUsedJSHeapSize  float64
 }
 
+func (b *PerformanceAggregator) MessageTypes() []int {
+	return []int{MsgPerformanceTrack}
+}
+
 func (b *PerformanceAggregator) start(timestamp uint64) {
 	b.PerformanceTrackAggr = &PerformanceTrackAggr{
 		TimestampStart: timestamp,
@@ -37,57 +41,54 @@ func (b *PerformanceAggregator) reset() {
 }
 
 func (b *PerformanceAggregator) Handle(message Message, timestamp uint64) Message {
-	switch msg := message.(type) {
-	case *PerformanceTrack:
-		if b.PerformanceTrackAggr == nil || msg.Frames == -1 || msg.Ticks == -1 {
-			pta := b.Build()
-			b.start(timestamp)
-			return pta
-		}
-
-		dt := performance.TimeDiff(timestamp, b.lastTimestamp)
-		if dt == 0 {
-			return nil // shouldn't happen
-		}
-
-		frameRate := performance.FrameRate(msg.Frames, dt)
-		tickRate := performance.TickRate(msg.Ticks, dt)
-
-		fps := uint64(math.Round(frameRate))
-		cpu := performance.CPURateFromTickRate(tickRate)
-		if fps < b.MinFPS || b.MinFPS == 0 {
-			b.MinFPS = fps
-		}
-		if fps > b.MaxFPS {
-			b.MaxFPS = fps
-		}
-		if cpu < b.MinCPU || b.MinCPU == 0 {
-			b.MinCPU = cpu
-		}
-		if cpu > b.MaxCPU {
-			b.MaxCPU = cpu
-		}
-		if msg.TotalJSHeapSize < b.MinTotalJSHeapSize || b.MinTotalJSHeapSize == 0 {
-			b.MinTotalJSHeapSize = msg.TotalJSHeapSize
-		}
-		if msg.TotalJSHeapSize > b.MaxTotalJSHeapSize {
-			b.MaxTotalJSHeapSize = msg.TotalJSHeapSize
-		}
-		if msg.UsedJSHeapSize < b.MinUsedJSHeapSize || b.MinUsedJSHeapSize == 0 {
-			b.MinUsedJSHeapSize = msg.UsedJSHeapSize
-		}
-		if msg.UsedJSHeapSize > b.MaxUsedJSHeapSize {
-			b.MaxUsedJSHeapSize = msg.UsedJSHeapSize
-		}
-		b.sumFrameRate += frameRate
-		b.sumTickRate += tickRate
-		b.sumTotalJSHeapSize += float64(msg.TotalJSHeapSize)
-		b.sumUsedJSHeapSize += float64(msg.UsedJSHeapSize)
-		b.count += 1
-		b.lastTimestamp = timestamp
+	msg := message.Decode().(*PerformanceTrack)
+	if b.PerformanceTrackAggr == nil || msg.Frames == -1 || msg.Ticks == -1 {
+		pta := b.Build()
+		b.start(timestamp)
+		return pta
 	}
-	if b.PerformanceTrackAggr != nil &&
-		timestamp-b.PerformanceTrackAggr.TimestampStart >= AggregationWindow {
+
+	dt := performance.TimeDiff(timestamp, b.lastTimestamp)
+	if dt == 0 {
+		return nil // shouldn't happen
+	}
+
+	frameRate := performance.FrameRate(msg.Frames, dt)
+	tickRate := performance.TickRate(msg.Ticks, dt)
+
+	fps := uint64(math.Round(frameRate))
+	cpu := performance.CPURateFromTickRate(tickRate)
+	if fps < b.MinFPS || b.MinFPS == 0 {
+		b.MinFPS = fps
+	}
+	if fps > b.MaxFPS {
+		b.MaxFPS = fps
+	}
+	if cpu < b.MinCPU || b.MinCPU == 0 {
+		b.MinCPU = cpu
+	}
+	if cpu > b.MaxCPU {
+		b.MaxCPU = cpu
+	}
+	if msg.TotalJSHeapSize < b.MinTotalJSHeapSize || b.MinTotalJSHeapSize == 0 {
+		b.MinTotalJSHeapSize = msg.TotalJSHeapSize
+	}
+	if msg.TotalJSHeapSize > b.MaxTotalJSHeapSize {
+		b.MaxTotalJSHeapSize = msg.TotalJSHeapSize
+	}
+	if msg.UsedJSHeapSize < b.MinUsedJSHeapSize || b.MinUsedJSHeapSize == 0 {
+		b.MinUsedJSHeapSize = msg.UsedJSHeapSize
+	}
+	if msg.UsedJSHeapSize > b.MaxUsedJSHeapSize {
+		b.MaxUsedJSHeapSize = msg.UsedJSHeapSize
+	}
+	b.sumFrameRate += frameRate
+	b.sumTickRate += tickRate
+	b.sumTotalJSHeapSize += float64(msg.TotalJSHeapSize)
+	b.sumUsedJSHeapSize += float64(msg.UsedJSHeapSize)
+	b.count += 1
+	b.lastTimestamp = timestamp
+	if timestamp-b.PerformanceTrackAggr.TimestampStart >= AggregationWindow {
 		return b.Build()
 	}
 	return nil

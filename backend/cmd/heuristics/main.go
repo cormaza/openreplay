@@ -51,40 +51,13 @@ func main() {
 		return producer.Ping(ctx)
 	})
 
+	// Collect filter from handlers + lifecycle types used by builder.shouldEnd
 	messageFilter := []int{
-		// DeadClickDetector
-		messages.MsgCreateDocument,
-		messages.MsgCreateElementNode,
-		messages.MsgCreateTextNode,
-		messages.MsgMoveNode,
-		messages.MsgRemoveNode,
-		messages.MsgSetNodeAttribute,
-		messages.MsgRemoveNodeAttribute,
-		messages.MsgSetCSSData,
-		messages.MsgSetInputTarget,
-		messages.MsgSetInputValue,
-		messages.MsgSetInputChecked,
-		messages.MsgSetNodeFocus,
-		// PageEventBuilder
-		messages.MsgPageLoadTiming,
-		messages.MsgPageRenderTiming,
-		messages.MsgWebVitals,
-		// PerformanceAggregator / Cpu / Memory
-		messages.MsgPerformanceTrack,
-		// ClickRage / DeadClick
-		messages.MsgMouseClick,
-		// AppCrash
-		messages.MsgJSException,
-		messages.MsgUnbindNodes,
-		// NetworkIssue / AppCrash
-		messages.MsgNetworkRequest,
-		// Page context for Cpu/Memory/PageEventBuilder
-		messages.MsgSetPageLocation,
-		// Lifecycle: flush final Build() via builder.shouldEnd
 		messages.MsgSessionEnd,
-		// Mobile: TapRageDetector + lifecycle
-		messages.MsgMobileClickEvent,
 		messages.MsgMobileSessionEnd,
+	}
+	for _, p := range handlersFabric() {
+		messageFilter = append(messageFilter, p.MessageTypes()...)
 	}
 	consumer, err := queue.NewConsumer(
 		log,
@@ -93,7 +66,7 @@ func main() {
 			cfg.TopicRawWeb,
 			cfg.TopicRawMobile,
 		},
-		messages.NewMessageIterator(log, events.HandleMessage, messageFilter, true),
+		messages.NewMessageIterator(log, events.HandleMessage, messageFilter, false),
 		false,
 		cfg.MessageSizeLimit,
 		nil,

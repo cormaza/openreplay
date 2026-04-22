@@ -19,6 +19,10 @@ type MemoryIssueDetector struct {
 	contextString  string
 }
 
+func (f *MemoryIssueDetector) MessageTypes() []int {
+	return []int{MsgPerformanceTrack, MsgSetPageLocation}
+}
+
 func (f *MemoryIssueDetector) reset() {
 	f.startTimestamp = 0
 	f.startMessageID = 0
@@ -45,8 +49,9 @@ func (f *MemoryIssueDetector) Build() Message {
 }
 
 func (f *MemoryIssueDetector) Handle(message Message, timestamp uint64) Message {
-	switch msg := message.(type) {
-	case *PerformanceTrack:
+	switch message.TypeID() {
+	case MsgPerformanceTrack:
+		msg := message.Decode().(*PerformanceTrack)
 		if f.count < MIN_COUNT {
 			f.sum += float64(msg.UsedJSHeapSize)
 			f.count++
@@ -70,7 +75,8 @@ func (f *MemoryIssueDetector) Handle(message Message, timestamp uint64) Message 
 		} else {
 			return f.Build()
 		}
-	case *SetPageLocation:
+	case MsgSetPageLocation:
+		msg := message.Decode().(*SetPageLocation)
 		f.contextString = msg.URL
 	}
 	return nil

@@ -19,6 +19,10 @@ type TapRageDetector struct {
 	countsInARow         int
 }
 
+func (h *TapRageDetector) MessageTypes() []int {
+	return []int{MsgMobileClickEvent, MsgMobileSessionEnd}
+}
+
 func (h *TapRageDetector) createPayload() string {
 	p, err := json.Marshal(struct{ Count int }{h.countsInARow})
 	if err != nil {
@@ -48,8 +52,9 @@ func (h *TapRageDetector) Build() Message {
 
 func (h *TapRageDetector) Handle(message Message, timestamp uint64) Message {
 	var event Message = nil
-	switch m := message.(type) {
-	case *MobileClickEvent:
+	switch message.TypeID() {
+	case MsgMobileClickEvent:
+		m := message.Decode().(*MobileClickEvent)
 		if h.lastTimestamp+TapTimeDiff < m.Timestamp && h.lastLabel == m.Label {
 			h.lastTimestamp = m.Timestamp
 			h.countsInARow += 1
@@ -63,7 +68,7 @@ func (h *TapRageDetector) Handle(message Message, timestamp uint64) Message {
 			h.firstInARawSeqIndex = m.Index
 			h.countsInARow = 1
 		}
-	case *MobileSessionEnd:
+	case MsgMobileSessionEnd:
 		event = h.Build()
 	}
 	return event

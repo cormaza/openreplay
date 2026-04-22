@@ -25,6 +25,10 @@ type CpuIssueDetector struct {
 	contextString  string
 }
 
+func (f *CpuIssueDetector) MessageTypes() []int {
+	return []int{MsgPerformanceTrack, MsgSetPageLocation}
+}
+
 func (f *CpuIssueDetector) createPayload() string {
 	p, err := json.Marshal(struct {
 		Duration uint64
@@ -61,19 +65,17 @@ func (f *CpuIssueDetector) Build() Message {
 }
 
 func (f *CpuIssueDetector) Handle(message Message, timestamp uint64) Message {
-	switch msg := message.(type) {
-	case *PerformanceTrack:
-		// Ignore if it's a wrong message order
+	switch message.TypeID() {
+	case MsgPerformanceTrack:
+		msg := message.Decode().(*PerformanceTrack)
 		if timestamp < f.lastTimestamp {
 			return nil
 		}
 		f.lastTimestamp = timestamp
 		cpuRate := performance.CPURate(msg.Ticks, performance.TimeDiff(timestamp, f.lastTimestamp))
-		// Build event if cpu issue have gone
 		if msg.Frames == -1 || msg.Ticks == -1 || cpuRate < CpuThreshold {
 			return f.Build()
 		}
-		// Update values
 		if f.startTimestamp == 0 {
 			f.startTimestamp = timestamp
 			f.startMessageID = message.MsgID()
@@ -81,7 +83,8 @@ func (f *CpuIssueDetector) Handle(message Message, timestamp uint64) Message {
 		if f.maxRate < cpuRate {
 			f.maxRate = cpuRate
 		}
-	case *SetPageLocation:
+	case MsgSetPageLocation:
+		msg := message.Decode().(*SetPageLocation)
 		f.contextString = msg.URL
 	}
 	return nil

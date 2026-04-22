@@ -13,6 +13,10 @@ func NewViewComponentDurations() *viewComponentDuration {
 	return compBuilder
 }
 
+func (b *viewComponentDuration) MessageTypes() []int {
+	return nil
+}
+
 func (b *viewComponentDuration) Handle(message Message, timestamp uint64) Message {
 	return nil
 }

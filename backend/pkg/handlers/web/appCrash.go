@@ -17,6 +17,14 @@ func NewAppCrashDetector() *AppCrashDetector {
 	return &AppCrashDetector{}
 }
 
+func (h *AppCrashDetector) MessageTypes() []int {
+	return []int{
+		messages.MsgUnbindNodes,
+		messages.MsgJSException,
+		messages.MsgNetworkRequest,
+	}
+}
+
 func (h *AppCrashDetector) reset() {
 	h.dropTimestamp = 0
 	h.lastIssueTimestamp = 0
@@ -56,17 +64,19 @@ func (h *AppCrashDetector) build() messages.Message {
 }
 
 func (h *AppCrashDetector) Handle(message messages.Message, timestamp uint64) messages.Message {
-	switch msg := message.(type) {
-	case *messages.UnbindNodes:
+	switch message.TypeID() {
+	case messages.MsgUnbindNodes:
+		msg := message.Decode().(*messages.UnbindNodes)
 		if msg.TotalRemovedPercent < CrashThreshold {
-			// Not enough nodes removed
 			return nil
 		}
 		h.dropTimestamp = timestamp
 		h.dropMessageID = msg.MsgID()
-	case *messages.JSException:
+	case messages.MsgJSException:
+		msg := message.Decode().(*messages.JSException)
 		h.updateLastIssueTimestamp(msg.Timestamp)
-	case *messages.NetworkRequest:
+	case messages.MsgNetworkRequest:
+		msg := message.Decode().(*messages.NetworkRequest)
 		if msg.Status >= 400 {
 			h.updateLastIssueTimestamp(msg.Timestamp)
 		}

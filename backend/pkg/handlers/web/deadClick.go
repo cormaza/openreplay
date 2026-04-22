@@ -18,6 +18,24 @@ func NewDeadClickDetector() *DeadClickDetector {
 	return &DeadClickDetector{inputIDSet: make(map[uint64]bool)}
 }
 
+func (d *DeadClickDetector) MessageTypes() []int {
+	return []int{
+		MsgMouseClick,
+		MsgSetInputTarget,
+		MsgCreateDocument,
+		MsgCreateElementNode,
+		MsgCreateTextNode,
+		MsgMoveNode,
+		MsgRemoveNode,
+		MsgSetNodeAttribute,
+		MsgRemoveNodeAttribute,
+		MsgSetCSSData,
+		MsgSetNodeFocus,
+		MsgSetInputValue,
+		MsgSetInputChecked,
+	}
+}
+
 func (d *DeadClickDetector) addInputID(id uint64) {
 	d.inputIDSet[id] = true
 }
@@ -51,12 +69,9 @@ func (d *DeadClickDetector) Build() Message {
 
 func (d *DeadClickDetector) Handle(message Message, timestamp uint64) Message {
 	d.lastTimestamp = timestamp
-	switch msg := message.(type) {
-	case *SetInputTarget:
-		d.addInputID(msg.ID)
-	case *CreateDocument:
-		d.clearInputIDs()
-	case *MouseClick:
+	switch message.TypeID() {
+	case MsgMouseClick:
+		msg := message.Decode().(*MouseClick)
 		if msg.Label == "" {
 			return nil
 		}
@@ -69,16 +84,14 @@ func (d *DeadClickDetector) Handle(message Message, timestamp uint64) Message {
 		d.lastClickTimestamp = timestamp
 		d.lastMessageID = message.MsgID()
 		return event
-	case *SetNodeAttribute,
-		*RemoveNodeAttribute,
-		*CreateElementNode,
-		*CreateTextNode,
-		*SetNodeFocus,
-		*MoveNode,
-		*RemoveNode,
-		*SetCSSData,
-		*SetInputValue,
-		*SetInputChecked:
+	case MsgSetInputTarget:
+		msg := message.Decode().(*SetInputTarget)
+		d.addInputID(msg.ID)
+	case MsgCreateDocument:
+		d.clearInputIDs()
+	case MsgSetNodeAttribute, MsgRemoveNodeAttribute, MsgCreateElementNode,
+		MsgCreateTextNode, MsgSetNodeFocus, MsgMoveNode, MsgRemoveNode,
+		MsgSetCSSData, MsgSetInputValue, MsgSetInputChecked:
 		return d.Build()
 	}
 	return nil

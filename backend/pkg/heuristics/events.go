@@ -103,20 +103,28 @@ type builder struct {
 	lastMessageID  uint64
 	lastSystemTime time.Time
 	processors     []handlers.MessageProcessor
+	dispatch       map[int][]handlers.MessageProcessor
 	ended          bool
 }
 
-func newBuilder(sessionID uint64, events chan messages.Message, handlers ...handlers.MessageProcessor) *builder {
+func newBuilder(sessionID uint64, events chan messages.Message, procs ...handlers.MessageProcessor) *builder {
+	dispatch := make(map[int][]handlers.MessageProcessor)
+	for _, p := range procs {
+		for _, t := range p.MessageTypes() {
+			dispatch[t] = append(dispatch[t], p)
+		}
+	}
 	return &builder{
 		sessionID:  sessionID,
-		processors: handlers,
+		processors: procs,
+		dispatch:   dispatch,
 		readyMsgs:  events,
 	}
 }
 
 func (b *builder) shouldEnd(message messages.Message) {
-	switch message.(type) {
-	case *messages.MobileSessionEnd, *messages.SessionEnd:
+	switch message.TypeID() {
+	case messages.MsgMobileSessionEnd, messages.MsgSessionEnd:
 		b.ended = true
 	}
 }
@@ -126,8 +134,8 @@ func (b *builder) handleMessage(m messages.Message) error {
 		return fmt.Errorf("skip message with wrong msgID: %d, lastID: %d", m.MsgID(), b.lastMessageID)
 	}
 	if m.Time() <= 0 {
-		switch m.(type) {
-		case *messages.IssueEvent, *messages.PerformanceTrackAggr:
+		switch m.TypeID() {
+		case messages.MsgIssueEvent, messages.MsgPerformanceTrackAggr:
 			break
 		default:
 			return fmt.Errorf("skip message with incorrect timestamp, msgID: %d, msgType: %d", m.MsgID(), m.TypeID())
@@ -138,8 +146,16 @@ func (b *builder) handleMessage(m messages.Message) error {
 		b.timestamp = m.Time()
 	}
 	b.lastSystemTime = time.Now()
-	// Process current message
-	for _, p := range b.processors {
+
+	procs := b.dispatch[m.TypeID()]
+	if len(procs) > 1 {
+		decoded := m.Decode()
+		if decoded == nil {
+			return fmt.Errorf("decode failed, msgID: %d, msgType: %d", m.MsgID(), m.TypeID())
+		}
+		m = decoded
+	}
+	for _, p := range procs {
 		if rm := p.Handle(m, b.timestamp); rm != nil {
 			rm.Meta().SetMeta(m.Meta())
 			b.readyMsgs <- rm

@@ -18,6 +18,10 @@ type ClickRageDetector struct {
 	url                  string
 }
 
+func (crd *ClickRageDetector) MessageTypes() []int {
+	return []int{MsgMouseClick}
+}
+
 func (crd *ClickRageDetector) reset() {
 	crd.lastTimestamp = 0
 	crd.lastLabel = ""
@@ -53,35 +57,27 @@ func (crd *ClickRageDetector) Build() Message {
 }
 
 func (crd *ClickRageDetector) Handle(message Message, timestamp uint64) Message {
-	switch msg := message.(type) {
-	case *MouseClick:
-		// Set click url
-		if crd.url == "" && msg.Url != "" {
-			crd.url = msg.Url
-		}
-		// Click on different object -> build if we can and reset the builder
-		if msg.Label == "" {
-			return crd.Build()
-		}
-		// Update builder with last information
-		if crd.lastLabel == msg.Label && timestamp-crd.lastTimestamp < MaxTimeDiff {
-			crd.lastTimestamp = timestamp
-			crd.countsInARow += 1
-			return nil
-		}
-		// Try to build event
-		event := crd.Build()
-		// Use current message as init values for new event
-		crd.lastTimestamp = timestamp
-		crd.lastLabel = msg.Label
-		crd.lastSelector = msg.Selector
-		crd.firstInARawTimestamp = timestamp
-		crd.firstInARawMessageId = message.MsgID()
-		crd.countsInARow = 1
-		if crd.url == "" && msg.Url != "" {
-			crd.url = msg.Url
-		}
-		return event
+	msg := message.Decode().(*MouseClick)
+	if crd.url == "" && msg.Url != "" {
+		crd.url = msg.Url
 	}
-	return nil
+	if msg.Label == "" {
+		return crd.Build()
+	}
+	if crd.lastLabel == msg.Label && timestamp-crd.lastTimestamp < MaxTimeDiff {
+		crd.lastTimestamp = timestamp
+		crd.countsInARow += 1
+		return nil
+	}
+	event := crd.Build()
+	crd.lastTimestamp = timestamp
+	crd.lastLabel = msg.Label
+	crd.lastSelector = msg.Selector
+	crd.firstInARawTimestamp = timestamp
+	crd.firstInARawMessageId = message.MsgID()
+	crd.countsInARow = 1
+	if crd.url == "" && msg.Url != "" {
+		crd.url = msg.Url
+	}
+	return event
 }

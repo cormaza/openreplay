@@ -19,9 +19,19 @@ func NewPageEventBuilder() *pageEventBuilder {
 	return ieBuilder
 }
 
+func (b *pageEventBuilder) MessageTypes() []int {
+	return []int{
+		MsgSetPageLocation,
+		MsgPageLoadTiming,
+		MsgPageRenderTiming,
+		MsgWebVitals,
+	}
+}
+
 func (b *pageEventBuilder) Handle(message Message, timestamp uint64) Message {
-	switch msg := message.(type) {
-	case *SetPageLocation:
+	switch message.TypeID() {
+	case MsgSetPageLocation:
+		msg := message.Decode().(*SetPageLocation)
 		if msg.NavigationStart == 0 { // routing without new page loading
 			return &PageEvent{
 				URL:       msg.URL,
@@ -41,10 +51,11 @@ func (b *pageEventBuilder) Handle(message Message, timestamp uint64) Message {
 			}
 			return pageEvent
 		}
-	case *PageLoadTiming:
+	case MsgPageLoadTiming:
 		if b.pageEvent == nil {
 			break
 		}
+		msg := message.Decode().(*PageLoadTiming)
 		if msg.RequestStart <= 30000 {
 			b.pageEvent.RequestStart = msg.RequestStart
 		}
@@ -73,15 +84,17 @@ func (b *pageEventBuilder) Handle(message Message, timestamp uint64) Message {
 			b.pageEvent.FirstContentfulPaint = msg.FirstContentfulPaint
 		}
 		return nil
-	case *PageRenderTiming:
+	case MsgPageRenderTiming:
 		if b.pageEvent == nil {
 			break
 		}
+		msg := message.Decode().(*PageRenderTiming)
 		b.pageEvent.SpeedIndex = msg.SpeedIndex
 		b.pageEvent.VisuallyComplete = msg.VisuallyComplete
 		b.pageEvent.TimeToInteractive = msg.TimeToInteractive
 		return nil
-	case *WebVitals:
+	case MsgWebVitals:
+		msg := message.Decode().(*WebVitals)
 		if b.webVitals == nil {
 			b.webVitals = make(map[string]string)
 		}
