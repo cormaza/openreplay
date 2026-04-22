@@ -23,7 +23,7 @@ func (d *DeadClickDetector) addInputID(id uint64) {
 }
 
 func (d *DeadClickDetector) clearInputIDs() {
-	d.inputIDSet = make(map[uint64]bool)
+	clear(d.inputIDSet)
 }
 
 func (d *DeadClickDetector) reset() {

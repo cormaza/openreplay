@@ -50,6 +50,42 @@ func main() {
 	h.Register("producer", func(ctx context.Context) error {
 		return producer.Ping(ctx)
 	})
+
+	messageFilter := []int{
+		// DeadClickDetector
+		messages.MsgCreateDocument,
+		messages.MsgCreateElementNode,
+		messages.MsgCreateTextNode,
+		messages.MsgMoveNode,
+		messages.MsgRemoveNode,
+		messages.MsgSetNodeAttribute,
+		messages.MsgRemoveNodeAttribute,
+		messages.MsgSetCSSData,
+		messages.MsgSetInputTarget,
+		messages.MsgSetInputValue,
+		messages.MsgSetInputChecked,
+		messages.MsgSetNodeFocus,
+		// PageEventBuilder
+		messages.MsgPageLoadTiming,
+		messages.MsgPageRenderTiming,
+		messages.MsgWebVitals,
+		// PerformanceAggregator / Cpu / Memory
+		messages.MsgPerformanceTrack,
+		// ClickRage / DeadClick
+		messages.MsgMouseClick,
+		// AppCrash
+		messages.MsgJSException,
+		messages.MsgUnbindNodes,
+		// NetworkIssue / AppCrash
+		messages.MsgNetworkRequest,
+		// Page context for Cpu/Memory/PageEventBuilder
+		messages.MsgSetPageLocation,
+		// Lifecycle: flush final Build() via builder.shouldEnd
+		messages.MsgSessionEnd,
+		// Mobile: TapRageDetector + lifecycle
+		messages.MsgMobileClickEvent,
+		messages.MsgMobileSessionEnd,
+	}
 	consumer, err := queue.NewConsumer(
 		log,
 		cfg.GroupHeuristics,
@@ -57,7 +93,7 @@ func main() {
 			cfg.TopicRawWeb,
 			cfg.TopicRawMobile,
 		},
-		messages.NewMessageIterator(log, events.HandleMessage, nil, true),
+		messages.NewMessageIterator(log, events.HandleMessage, messageFilter, true),
 		false,
 		cfg.MessageSizeLimit,
 		nil,
