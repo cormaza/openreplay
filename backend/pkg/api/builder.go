@@ -112,9 +112,9 @@ func NewServiceBuilder(log logger.Logger, cfg *config.Config, webMetrics web.Web
 	requestHandler := api.NewRequestHandler(log, responser, cfg.JsonSizeLimit)
 
 	lexiconService := lexicon.New(log, chconn)
-	actionsService := lexicon.NewActions(log, pgconn)
+	segmentsService := lexicon.NewSegments(log, pgconn)
 
-	analyticsEventsService, err := analyticsEvents.New(log, chconn, lexiconService, actionsService)
+	analyticsEventsService, err := analyticsEvents.New(log, chconn, lexiconService)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func NewServiceBuilder(log logger.Logger, cfg *config.Config, webMetrics web.Web
 		return nil, err
 	}
 
-	searchService, err := search.New(log, chconn, pgconn, actionsService)
+	searchService, err := search.New(log, chconn, pgconn, segmentsService)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func NewServiceBuilder(log logger.Logger, cfg *config.Config, webMetrics web.Web
 		return nil, err
 	}
 
-	chartsService, err := charts.New(log, chconn, actionsService)
+	chartsService, err := charts.New(log, chconn, segmentsService)
 	if err != nil {
 		return nil, err
 	}
@@ -201,13 +201,13 @@ func NewServiceBuilder(log logger.Logger, cfg *config.Config, webMetrics web.Web
 		return nil, err
 	}
 
-	savedSearchesService := saved_searches.New(log, pgconn)
+	savedSearchesService := saved_searches.New(log, pgconn, searchService)
 	savedSearchesHandlers, err := saved_searches.NewHandlers(log, cfg, responser, savedSearchesService, reqValidator)
 	if err != nil {
 		return nil, err
 	}
 
-	lexiconHandlers, err := lexiconAPI.NewHandlers(log, requestHandler, lexiconService, actionsService)
+	lexiconHandlers, err := lexiconAPI.NewHandlers(log, requestHandler, lexiconService)
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ from chalicelib.utils import pg_client
 
 logger = logging.getLogger(__name__)
 
-actions_cache = TTLCache(maxsize=1000, ttl=60)
 features_cache = TTLCache(maxsize=1000, ttl=60)
 
 COUNTRY_CODES = [
@@ -325,37 +324,6 @@ def get_users_filters_identified(project_id: int):
     }
 
 
-@cached(actions_cache)
-def get_actions_filters(project_id: int):
-    with pg_client.PostgresClient() as cur:
-        query = cur.mogrify(
-            """SELECT action_id, name, description
-               FROM public.actions
-               WHERE project_id = %(project_id)s
-               ORDER BY name;""",
-            {"project_id": project_id},
-        )
-        cur.execute(query=query)
-        rows = cur.fetchall()
-
-    results = []
-    for row in rows:
-        results.append({
-            "actionId": row["action_id"],
-            "name": row["name"],
-            "displayName": row["name"],
-            "description": row["description"],
-            "isAction": True,
-        })
-
-    return {
-        "total": len(results),
-        "displayName": "Actions",
-        "scope": ["sessions", "events"],
-        "list": results,
-    }
-
-
 @cached(features_cache)
 def get_features_filters(project_id: int):
     with pg_client.PostgresClient() as cur:
@@ -387,6 +355,39 @@ def get_features_filters(project_id: int):
     return {
         "total": len(results),
         "displayName": "Features",
+        "scope": ["sessions", "events"],
+        "list": results,
+    }
+
+
+def get_segments_filters(project_id: int, user_id: int):
+    with pg_client.PostgresClient() as cur:
+        query = cur.mogrify(
+            """SELECT search_id, name, is_public
+               FROM public.saved_searches
+               WHERE project_id = %(project_id)s
+                 AND deleted_at IS NULL
+                 AND is_share = FALSE
+                 AND (user_id = %(user_id)s OR is_public)
+               ORDER BY name;""",
+            {"project_id": project_id, "user_id": user_id},
+        )
+        cur.execute(query=query)
+        rows = cur.fetchall()
+
+    results = []
+    for row in rows:
+        results.append({
+            "searchId": str(row["search_id"]),
+            "name": row["name"],
+            "displayName": row["name"],
+            "isPublic": row["is_public"],
+            "isSegment": True,
+        })
+
+    return {
+        "total": len(results),
+        "displayName": "Segments",
         "scope": ["sessions", "events"],
         "list": results,
     }

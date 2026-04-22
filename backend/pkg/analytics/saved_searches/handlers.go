@@ -2,9 +2,11 @@ package saved_searches
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -125,7 +127,11 @@ func (e *handlersImpl) getSavedSearch(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := e.savedSearches.Get(projectID, searchID)
 	if err != nil {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, err, startTime, r.URL.Path, bodySize)
+		if errors.Is(err, ErrSavedSearchNotFound) {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, err, startTime, r.URL.Path, bodySize)
+			return
+		}
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, bodySize)
 		return
 	}
 
@@ -159,7 +165,27 @@ func (e *handlersImpl) listSavedSearches(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	searches, total, err := e.savedSearches.List(projectID, currentUser.ID, limit, offset)
+	sort := "createdAt"
+	if s := r.URL.Query().Get("sort"); s != "" {
+		switch s {
+		case "name", "createdAt", "userName":
+			sort = s
+		default:
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, fmt.Errorf("invalid sort key: %s (allowed: name, createdAt, userName)", s), startTime, r.URL.Path, bodySize)
+			return
+		}
+	}
+
+	order := "desc"
+	if o := strings.ToLower(r.URL.Query().Get("order")); o != "" {
+		if o != "asc" && o != "desc" {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, fmt.Errorf("invalid order: %s (allowed: asc, desc)", o), startTime, r.URL.Path, bodySize)
+			return
+		}
+		order = o
+	}
+
+	searches, total, err := e.savedSearches.List(r.Context(), projectID, currentUser.ID, limit, offset, sort, order)
 	if err != nil {
 		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, bodySize)
 		return
@@ -210,6 +236,14 @@ func (e *handlersImpl) updateSavedSearch(w http.ResponseWriter, r *http.Request)
 	currentUser := r.Context().Value("userData").(*user.User)
 	resp, err := e.savedSearches.Update(projectID, currentUser.ID, searchID, req)
 	if err != nil {
+		if errors.Is(err, ErrSavedSearchNotFound) {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, err, startTime, r.URL.Path, bodySize)
+			return
+		}
+		if errors.Is(err, ErrSavedSearchForbidden) {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusForbidden, err, startTime, r.URL.Path, bodySize)
+			return
+		}
 		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, bodySize)
 		return
 	}
@@ -236,7 +270,15 @@ func (e *handlersImpl) deleteSavedSearch(w http.ResponseWriter, r *http.Request)
 	currentUser := r.Context().Value("userData").(*user.User)
 	err = e.savedSearches.Delete(projectID, currentUser.ID, searchID)
 	if err != nil {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, err, startTime, r.URL.Path, bodySize)
+		if errors.Is(err, ErrSavedSearchNotFound) {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, err, startTime, r.URL.Path, bodySize)
+			return
+		}
+		if errors.Is(err, ErrSavedSearchForbidden) {
+			e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusForbidden, err, startTime, r.URL.Path, bodySize)
+			return
+		}
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, bodySize)
 		return
 	}
 

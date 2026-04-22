@@ -18,16 +18,18 @@ type Charts interface {
 }
 
 type chartsImpl struct {
-	chConn  driver.Conn
-	Logger  logger.Logger
-	actions lexicon.Actions
+	chConn     driver.Conn
+	Logger     logger.Logger
+	filterRefs []lexicon.FilterRef
 }
 
-func New(logger logger.Logger, chConn driver.Conn, actions lexicon.Actions) (Charts, error) {
+func New(logger logger.Logger, chConn driver.Conn, segments lexicon.Segments) (Charts, error) {
 	return &chartsImpl{
-		chConn:  chConn,
-		Logger:  logger,
-		actions: actions,
+		chConn: chConn,
+		Logger: logger,
+		filterRefs: []lexicon.FilterRef{
+			lexicon.NewSegmentFilterRef(segments),
+		},
 	}, nil
 }
 
@@ -36,7 +38,7 @@ func (s *chartsImpl) GetData(ctx context.Context, projectId int, userID uint64, 
 		return nil, fmt.Errorf("request is empty")
 	}
 
-	if err := lexicon.ResolveMetricPayloadFilters(ctx, s.actions, uint32(projectId), req); err != nil {
+	if err := lexicon.ResolveMetricPayload(ctx, s.filterRefs, uint32(projectId), req); err != nil {
 		return nil, err
 	}
 

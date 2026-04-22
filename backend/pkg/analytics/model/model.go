@@ -50,6 +50,8 @@ type Filter struct {
 	Filters       []Filter `json:"filters,omitempty"` // Nested filters for complex conditions
 	IsAction      bool     `json:"isAction"`
 	ActionId      string   `json:"actionId,omitempty" validate:"omitempty,max=36"`
+	IsSegment     bool     `json:"isSegment"`
+	SearchId      string   `json:"searchId,omitempty" validate:"omitempty,max=36"`
 }
 
 var ViewTypeTimeseries []string = []string{"lineChart", "areaChart", "barChart", "progressChart", "pieChart", "metric", "table"}
@@ -227,17 +229,19 @@ type SavedSearchData struct {
 }
 
 type SavedSearch struct {
-	SearchID  string          `json:"searchId"`
-	ProjectID int             `json:"projectId"`
-	UserID    uint64          `json:"userId"`
-	UserName  string          `json:"userName,omitempty"`
-	Name      *string         `json:"name,omitempty"`
-	IsPublic  bool            `json:"isPublic"`
-	IsShare   bool            `json:"isShare"`
-	Data      SavedSearchData `json:"data"`
-	CreatedAt time.Time       `json:"createdAt"`
-	ExpiresAt *time.Time      `json:"-"`
-	DeletedAt *time.Time      `json:"-"`
+	SearchID      string          `json:"searchId"`
+	ProjectID     int             `json:"projectId"`
+	UserID        uint64          `json:"userId"`
+	UserName      string          `json:"userName,omitempty"`
+	Name          *string         `json:"name,omitempty"`
+	IsPublic      bool            `json:"isPublic"`
+	IsShare       bool            `json:"isShare"`
+	Data          SavedSearchData `json:"data"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	SessionsCount int64           `json:"sessionsCount"`
+	UsersCount    int64           `json:"usersCount"`
+	ExpiresAt     *time.Time      `json:"-"`
+	DeletedAt     *time.Time      `json:"-"`
 }
 
 type SavedSearchResponse struct {
