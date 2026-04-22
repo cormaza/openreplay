@@ -223,7 +223,6 @@ export default class IOSMessageManager implements IMessageManager {
       });
     }
     if (lastAppFocusMessage) {
-      console.log(lastAppFocusMessage);
       Object.assign(stateToUpdate, {
         inBackground: lastAppFocusMessage.value === 1,
       });
@@ -261,6 +260,9 @@ export default class IOSMessageManager implements IMessageManager {
 
   distributeMessage = (msg: Message & { tabId: string }): void => {
     if (msg.tp === 9999) return;
+    // @ts-ignore
+    const fixedTime = msg.timestamp - this.sessionStart;
+    msg.time = fixedTime;
     const lastMessageTime = Math.max(msg.time, this.lastMessageTime);
     this.lastMessageTime = lastMessageTime;
     this.state.update({ lastMessageTime });
