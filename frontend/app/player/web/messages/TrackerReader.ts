@@ -5,6 +5,7 @@ import { MType } from './raw.gen';
 import rewriteMessage from './rewriter/rewriteMessage';
 
 export type BatchKind = 'player' | 'assets' | 'devtools' | 'analytics';
+type TsPlaceholder = { tp: 9999; time: number };
 
 export default class TrackerReader {
   private currentTime = 0;
@@ -21,8 +22,8 @@ export default class TrackerReader {
    * Append new data and parse all complete messages available so far.
    * Returns { kind, messages } — 'player' (version=2) or 'assets' (version=3).
    */
-  readBatch(): PlayerMsg[] {
-    const messages: PlayerMsg[] = [];
+  readBatch(): Array<PlayerMsg | TsPlaceholder> {
+    const messages: Array<PlayerMsg | TsPlaceholder> = [];
 
     while (this.reader.hasNextByte()) {
       const raw = this.reader.readMessage();
@@ -33,6 +34,10 @@ export default class TrackerReader {
       if (raw.tp === MType.Timestamp) {
         const ts = (raw as { tp: number; timestamp: number }).timestamp;
         this.currentTime = ts - this.startTime;
+        messages.push({
+          tp: 9999,
+          time: this.currentTime,
+        });
         continue;
       }
 
