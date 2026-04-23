@@ -84,8 +84,9 @@ export default class QueueSender {
       return
     }
     this.attemptsCount++
+    const batchCopy = new Uint8Array(batch)
     setTimeout(
-      () => this.sendBatch(batch, isCompressed, batchNum, dataType),
+      () => this.sendBatch(batchCopy, isCompressed, batchNum, dataType),
       this.ATTEMPT_TIMEOUT * this.attemptsCount,
     )
   }

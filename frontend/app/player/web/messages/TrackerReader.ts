@@ -26,7 +26,9 @@ export default class TrackerReader {
 
     while (this.reader.hasNextByte()) {
       const raw = this.reader.readMessage();
-      if (!raw) break;
+      if (!raw) {
+        break;
+      }
 
       if (raw.tp === MType.Timestamp) {
         const ts = (raw as { tp: number; timestamp: number }).timestamp;
@@ -46,7 +48,9 @@ export default class TrackerReader {
 
       messages.push(msg);
     }
-
+    if (this.reader.hasReadAll()) {
+      console.log('has read all bytes', this.reader.getBufferSize());
+    }
     return messages;
   }
 }

@@ -15,6 +15,14 @@ export default class PrimitiveReader {
     return this.p < this.buf.length;
   }
 
+  hasReadAll(): boolean {
+    return this.p === this.buf.length;
+  }
+
+  getBufferSize() {
+    return this.buf.length;
+  }
+
   readUint8(): number | null {
     if (this.p >= this.buf.length) return null;
     return this.buf[this.p++];
