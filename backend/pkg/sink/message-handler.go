@@ -101,7 +101,6 @@ func (h *handlerImpl) Handle(msg messages.Message) {
 		msg = h.assetMessageHandler.ParseAssets(m)
 	}
 
-	// Filter message
 	if !messages.IsReplayerType(msg.TypeID()) {
 		return
 	}
@@ -109,28 +108,21 @@ func (h *handlerImpl) Handle(msg messages.Message) {
 	if h.batchInfo == nil {
 		h.batchInfo = msg.Meta().Batch()
 	}
+	if h.sessionID == 0 {
+		h.sessionID = msg.SessionID()
+	}
 
 	// Try to encode message to avoid null data inserts
 	data := msg.Encode()
 	if data == nil {
 		return
 	}
-
-	// Write message to the batch buffer
-	if h.sessionID == 0 {
-		h.sessionID = msg.SessionID()
-	}
-
-	// Encode message index
 	binary.LittleEndian.PutUint64(h.messageIndex, msg.Meta().Index)
 
-	// Add message to dom buffer
 	if messages.IsDOMType(msg.TypeID()) {
 		h.domBuffer.Write(h.messageIndex)
 		h.domBuffer.Write(data)
 	}
-
-	// Add message to dev buffer
 	if !messages.IsDOMType(msg.TypeID()) || msg.TypeID() == messages.MsgTimestamp || msg.TypeID() == messages.MsgTabData {
 		h.devBuffer.Write(h.messageIndex)
 		h.devBuffer.Write(data)

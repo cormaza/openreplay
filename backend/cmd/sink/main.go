@@ -117,10 +117,8 @@ func main() {
 		select {
 		case sig := <-sigchan:
 			log.Info(ctx, "Caught signal %v: terminating", sig)
-			// Sync and stop writers
 			mobWriter.Stop()
 			filePool.Stop()
-			// Commit and stop consumer
 			if err := consumer.Commit(); err != nil {
 				log.Error(ctx, "can't commit messages: %s", err)
 			}
