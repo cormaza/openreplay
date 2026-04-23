@@ -83,19 +83,22 @@ jobs:
           skip_security_checks=${{ github.event.inputs.skip_security_checks }}
           cd api
           PUSH_IMAGE=0 bash -x ./build.sh
-          [[ "x$skip_security_checks" == "xtrue" ]]  || {
+          if [[ "x$skip_security_checks" == "xtrue" ]]; then
+            echo "Skipping Security Checks"
+          else
             curl -fL https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.tar.gz -o /tmp/trivy.tgz && tar -xzf /tmp/trivy.tgz -C ./
             images=("chalice")
             for image in ${images[*]};do
-              ./trivy image --db-repository ghcr.io/aquasecurity/trivy-db:2 --db-repository public.ecr.aws/aquasecurity/trivy-db:2 --exit-code 1 --scanners vuln --pkg-types os,library --severity "HIGH,CRITICAL"  --ignore-unfixed $DOCKER_REPO/$image:$IMAGE_TAG
+              ./trivy image --db-repository ghcr.io/aquasecurity/trivy-db:2 --db-repository public.ecr.aws/aquasecurity/trivy-db:2 --scanners vuln --pkg-types os,library --severity "HIGH,CRITICAL" --ignore-unfixed --format json --output /tmp/trivy-$image.json $DOCKER_REPO/$image:$IMAGE_TAG
+              # Also print the table to the log for quick triage.
+              ./trivy convert --format table --scanners vuln /tmp/trivy-$image.json || true
+              count=$(jq '[.Results[]?.Vulnerabilities // [] | length] | add // 0' /tmp/trivy-$image.json)
+              if [[ $count -gt 0 ]]; then
+                echo "FAILED_SERVICE=$image" >> "$GITHUB_ENV"
+                exit 1
+              fi
             done
-            err_code=$?
-            [[ $err_code -ne 0 ]] && {
-              exit $err_code
-            }
-          } && {
-            echo "Skipping Security Checks"
-          }
+          fi
           images=("chalice")
           for image in ${images[*]};do
             docker push $DOCKER_REPO/$image:$IMAGE_TAG 
@@ -138,16 +141,59 @@ jobs:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
           ENVIRONMENT: staging
 
+      - name: Build scan summary
+        if: failure() && env.FAILED_SERVICE != ''
+        env:
+          DOCKER_REPO: ${{ secrets.OSS_REGISTRY_URL }}
+        run: |
+          set -e
+          f=/tmp/trivy-${FAILED_SERVICE}.json
+          [[ -f $f ]] || { echo "no trivy report for $FAILED_SERVICE"; exit 0; }
+
+          # GitHub Actions "Summary" tab: full markdown table of every CVE.
+          {
+            echo "## Trivy — \`$FAILED_SERVICE\` (${DOCKER_REPO}/${FAILED_SERVICE}:${IMAGE_TAG})"
+            jq -r '
+              [.Results[]?.Vulnerabilities // []] | add // [] |
+              if length == 0 then "_No vulnerabilities reported._"
+              else
+                (group_by(.Severity) | map("**\(.[0].Severity)**: \(length)") | join(" · ")) as $counts |
+                "\($counts)\n\n| Severity | CVE | Package | Installed | Fixed |\n|---|---|---|---|---|\n" +
+                (sort_by(({"CRITICAL":4,"HIGH":3,"MEDIUM":2,"LOW":1,"UNKNOWN":0}[.Severity] // 0), (.CVSS.nvd.V3Score // 0)) | reverse |
+                 map("| \(.Severity) | [\(.VulnerabilityID)](\(.PrimaryURL)) | `\(.PkgName)` | \(.InstalledVersion) | \(.FixedVersion // "—") |") | join("\n"))
+              end
+            ' "$f"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Slack payload: condensed top-10 list, fits under Slack's 4k-char soft limit.
+          {
+            echo "SLACK_MSG<<SLACK_EOF"
+            echo "*Service:* \`$FAILED_SERVICE\`    *Commit:* \`${GITHUB_SHA:0:7}\` by ${GITHUB_ACTOR}"
+            jq -r '[.Results[]?.Vulnerabilities // []] | add // [] |
+                   if length == 0 then ""
+                   else (group_by(.Severity) | map("\(.[0].Severity): \(length)") | join(" · ")) as $c |
+                        "*Findings:* \($c)"
+                   end' "$f"
+            echo "*Top 10:*"
+            jq -r '[.Results[]?.Vulnerabilities // []] | add // [] |
+                   sort_by(({"CRITICAL":4,"HIGH":3,"MEDIUM":2,"LOW":1,"UNKNOWN":0}[.Severity] // 0), (.CVSS.nvd.V3Score // 0)) | reverse | .[0:10] |
+                   map("• `\(.Severity)` \(.VulnerabilityID) — \(.PkgName) \(.InstalledVersion) → \(.FixedVersion // "no fix")") |
+                   .[]' "$f"
+            echo "SLACK_EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Alert slack
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_CHANNEL: foss
-          SLACK_TITLE: "Failed ${{ github.workflow }}"
-          SLACK_COLOR: ${{ job.status }} # or a specific color like 'good' or '#ff00ff'
+          SLACK_TITLE: "Failed ${{ github.workflow }}${{ env.FAILED_SERVICE && format(' — {0}', env.FAILED_SERVICE) || '' }}"
+          SLACK_COLOR: danger
+          SLACK_ICON_EMOJI: ":rotating_light:"
+          SLACK_FOOTER: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run ${{ github.run_id }}>"
+          SLACK_MESSAGE: ${{ env.SLACK_MSG || 'Build failed :bomb:' }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEB_HOOK }}
           SLACK_USERNAME: "OR Bot"
-          SLACK_MESSAGE: "Build failed :bomb:"
 
       # - name: Debug Job
       #   if: ${{ failure() }}
