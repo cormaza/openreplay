@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(ctx, "can't init storage service: %s", err)
 	}
-	counter := storage.NewLogCounter()
+	counter := 0
 
 	consumer, err := queue.NewConsumer(
 		log,
@@ -69,8 +69,7 @@ func main() {
 				if err := srv.Upload(sessCtx, sessEnd.SessionID(), sessEnd.EncryptionKey); err != nil {
 					log.Error(sessCtx, "process session err: %s", err)
 				}
-				// Log timestamp of last processed session
-				counter.Update(msg.SessionID(), time.UnixMilli(msg.Meta().Batch().Timestamp()))
+				counter++
 			},
 			[]int{messages.MsgSessionEnd, messages.MsgMobileSessionEnd, messages.MsgCleanSession},
 			true,
@@ -101,7 +100,7 @@ func main() {
 			consumer.Close()
 			os.Exit(0)
 		case <-counterTick:
-			go log.Info(ctx, "%s", counter.Log())
+			go log.Info(ctx, "count: %d", counter)
 			srv.Wait()
 			if err := consumer.Commit(); err != nil {
 				log.Error(ctx, "can't commit messages: %s", err)
