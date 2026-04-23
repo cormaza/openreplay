@@ -3,6 +3,21 @@ import { getTimeOrigin } from '../utils.js'
 import { SetPageLocation, SetViewportSize, SetPageVisibility } from '../app/messages.gen.js'
 import { stringWiper } from '../app/sanitizer.js'
 
+const defaultUrlSanitizer = (url: string) => {
+  const hiddenQueryParams = ['jwt', 'password', 'reset-password', 'invitation', 'secret', 'token']
+  try {
+    const u = new URL(url)
+    u.searchParams.forEach((value, key) => {
+      if (hiddenQueryParams.includes(key.toLowerCase())) {
+        u.searchParams.set(key, '*'.repeat(value.length))
+      }
+    })
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
 export interface Options {
   urlSanitizer?: (url: string) => string
   titleSanitizer?: (title: string) => string
@@ -19,7 +34,7 @@ export default function (app: App, options?: Options): void {
   let url: string | null, width: number, height: number
   let navigationStart: number
   let referrer = document.referrer
-  const urlSanitizer = options?.urlSanitizer || ((u) => u)
+  const urlSanitizer = options?.urlSanitizer || defaultUrlSanitizer
   const titleSanitizer = options?.titleSanitizer || ((t) => t)
 
   const sendSetPageLocation = app.safe(() => {
