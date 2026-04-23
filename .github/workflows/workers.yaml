@@ -116,7 +116,9 @@ jobs:
           do
             echo "Bulding $image"
             PUSH_IMAGE=0 bash -x ./build.sh skip $image
-            [[ "x$skip_security_checks" == "xtrue" ]]  || {
+            if [[ "x$skip_security_checks" == "xtrue" ]]; then
+              echo "Skipping Security Checks"
+            else
               curl -fL https://github.com/aquasecurity/trivy/releases/download/v0.70.0/trivy_0.70.0_Linux-64bit.tar.gz -o /tmp/trivy.tgz && tar -xzf /tmp/trivy.tgz -C ./
               ./trivy image --db-repository ghcr.io/aquasecurity/trivy-db:2 --db-repository public.ecr.aws/aquasecurity/trivy-db:2 --pkg-types os,library --severity "HIGH,CRITICAL" --ignore-unfixed --format json --output /tmp/trivy-$image.json $DOCKER_REPO/$image:$IMAGE_TAG
               # Also print the table to the log for quick triage.
@@ -126,9 +128,7 @@ jobs:
                 echo "FAILED_SERVICE=$image" >> "$GITHUB_ENV"
                 exit 1
               fi
-            } && {
-              echo "Skipping Security Checks"
-            }
+            fi
             docker push $DOCKER_REPO/$image:$IMAGE_TAG 
             echo "::set-output name=image::$DOCKER_REPO/$image:$IMAGE_TAG"
           done
