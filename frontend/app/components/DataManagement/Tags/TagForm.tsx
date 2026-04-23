@@ -60,8 +60,7 @@ function TagForm(props: Props) {
 
   return (
     <Form layout="vertical">
-      <Form.Item label={t('Name:')} className="font-medium!">
-        <label htmlFor="name">{t('Name')}</label>
+      <Form.Item label={t('Name')} className="font-medium!">
         <Input
           autoFocus
           name="name"
@@ -72,12 +71,10 @@ function TagForm(props: Props) {
           className="font-normal rounded-lg"
         />
       </Form.Item>
-      <Form.Item label={t('Selector:')} className="font-medium!">
-        <label htmlFor={'selector'}>Selector:</label>
+      <Form.Item label={t('Selector')} className="font-medium!">
         <Input value={tag.selector} disabled name={'selector'} />
       </Form.Item>
-      <Form.Item className="font-medium!">
-        <div className="font-semibold text-sm mb-1">{t('Scope')}</div>
+      <Form.Item label={t('Scope')} className="font-medium!">
         <Segmented
           size="small"
           value={scope}
@@ -97,16 +94,26 @@ function TagForm(props: Props) {
           />
         )}
       </Form.Item>
-
       {tag.tagId && (
-        <div className="mb-4 text-sm text-gray-500">
-          <div>
-            {t('Unique users')}: {tag.users ?? 0}
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="font-semibold">{t('Metrics')}</div>
+            <div>{t('Last 24h')}</div>
           </div>
-          <div>
-            {t('Total interactions')}: {tag.volume ?? 0}
+          <div className="flex gap-4 items-center mt-2 mb-4 w-full">
+            <div className="flex-1 flex flex-col items-center justify-center p-4 rounded-xl bg-gray-light">
+              <div className="text-gray-medium font-semibold text-xl">
+                {tag.users ?? 0}
+              </div>
+              <div className="text-gray-dark">{t('Unique users')}</div>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-4 rounded-xl bg-teal-light">
+              <div className="text-teal font-semibold text-xl">
+                {tag.volume ?? 0}
+              </div>
+              <div className="text-gray-dark">{t('Total interactions')}</div>
+            </div>
           </div>
-          <div className="italic mb-1">{t('(last 24 hours)')}</div>
         </div>
       )}
 
