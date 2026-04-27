@@ -1,3 +1,12 @@
+## 18.0.6
+
+- keepalive requests will not have live budget counter to prevent overflowing of 64kb quota
+- split batch writer into separate streams
+
+## 18.0.5
+
+- fix batchwriter on borderline-overflowing batches
+
 ## 18.0.4
 
 - fix bufferDiff on default starts (now will be 0)

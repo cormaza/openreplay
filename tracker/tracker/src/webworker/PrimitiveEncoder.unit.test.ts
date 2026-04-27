@@ -60,4 +60,46 @@ describe('PrimitiveEncoder', () => {
     wasWritten = enc.boolean(true)
     expect(wasWritten).toBe(false)
   })
+
+  describe('rewind()', () => {
+    test('rolls back offset and checkpoint to a saved state', () => {
+      const e = new PrimitiveEncoder(64)
+      e.uint(1)
+      e.uint(2)
+      e.checkpoint()
+      const savedOffset = e.getCurrentOffset()
+      const savedCheckpoint = e.getCurrentCheckpoint()
+
+      e.uint(3)
+      e.uint(4)
+      e.checkpoint()
+      expect(e.getCurrentOffset()).toBeGreaterThan(savedOffset)
+
+      e.rewind(savedOffset, savedCheckpoint)
+      expect(e.getCurrentOffset()).toBe(savedOffset)
+      expect(e.getCurrentCheckpoint()).toBe(savedCheckpoint)
+
+      const out = e.flush()
+      expect(Array.from(out)).toEqual([1, 2])
+    })
+
+    test('refuses to advance forward (no-op on bad input)', () => {
+      const e = new PrimitiveEncoder(64)
+      e.uint(7)
+      const offset = e.getCurrentOffset()
+      e.rewind(offset + 5, 100)
+      expect(e.getCurrentOffset()).toBe(offset)
+      expect(e.getCurrentCheckpoint()).toBe(0)
+    })
+
+    test('rewind to (0,0) is equivalent to reset', () => {
+      const e = new PrimitiveEncoder(64)
+      e.uint(1)
+      e.checkpoint()
+      e.uint(2)
+      e.rewind(0, 0)
+      expect(e.getCurrentOffset()).toBe(0)
+      expect(e.getCurrentCheckpoint()).toBe(0)
+    })
+  })
 })

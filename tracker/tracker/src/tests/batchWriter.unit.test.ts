@@ -72,57 +72,21 @@ describe('BatchWriter', () => {
     return writer
   }
 
-  describe('constructor and internals', () => {
-    test('constructor initializes BatchWriter instance', () => {
-      const writer = createWriter()
-      expect(writer['pageNo']).toBe(1)
-      expect(writer['timestamp']).toBe(1000)
-      expect(writer['url']).toBe('http://test.com')
-      expect(writer['onBatch']).toBe(onBatch)
-      expect(writer['nextIndex']).toBe(0)
-      expect(writer['prepared']).toBe(false)
-      expect(writer['beaconSize']).toBe(200000)
-      expect(writer['encoder']).toBeDefined()
-      expect(writer['sizeBuffer']).toHaveLength(3)
-      expect(writer['isEmpty']).toBe(true)
+  describe('construction and configuration', () => {
+    test('constructor accepts the required arguments without throwing', () => {
+      expect(() => createWriter()).not.toThrow()
     })
 
-    test('writeType writes the type of the message', () => {
-      const writer = createWriter()
-      const message = [Messages.Type.BatchMetadata, 1, 2, 3, 4, 'example.com']
-      const result = writer['writeType'](message as Message)
-      expect(result).toBe(true)
-    })
-
-    test('writeFields encodes the message fields', () => {
-      const writer = createWriter()
-      const message = [Messages.Type.BatchMetadata, 1, 2, 3, 4, 'example.com']
-      const result = writer['writeFields'](message as Message)
-      expect(result).toBe(true)
-    })
-
-    test('writeSizeAt writes the size at the given offset', () => {
-      const writer = createWriter()
-      writer['writeSizeAt'](100, 0)
-      expect(writer['sizeBuffer']).toEqual(new Uint8Array([100, 0, 0]))
-      expect(writer['encoder']['data'].slice(0, 3)).toEqual(new Uint8Array([100, 0, 0]))
-    })
-
-    test('writeWithSize writes the message with its size', () => {
-      const writer = createWriter()
-      const message = [Messages.Type.BatchMetadata, 1, 2, 3, 4, 'example.com']
-      const result = writer['writeWithSize'](message as Message)
-      expect(result).toBe(true)
-    })
-
-    test('setBeaconSizeLimit sets the beacon size limit', () => {
+    test('setBeaconSizeLimit does not affect a normal-sized batch', () => {
       const writer = createWriter()
       writer.setBeaconSizeLimit(500000)
-      expect(writer['beaconSizeLimit']).toBe(500000)
+      writer.writeMessage([MType.MouseMove, 100, 200])
+      writer.finaliseBatch()
+      expect(onBatch).toHaveBeenCalledTimes(1)
     })
   })
 
-  describe('lazy prepare - no batch on empty', () => {
+  describe('emission policy', () => {
     test('finaliseBatch with no messages does nothing', () => {
       const writer = createWriter()
       writer.finaliseBatch()
@@ -135,21 +99,6 @@ describe('BatchWriter', () => {
       writer.finaliseBatch()
       writer.finaliseBatch()
       expect(onBatch).not.toHaveBeenCalled()
-    })
-
-    test('prepare is lazy - not called until first writeMessage', () => {
-      const writer = createWriter()
-      expect(writer['prepared']).toBe(false)
-      writer.writeMessage([MType.MouseMove, 100, 200] as Message)
-      expect(writer['prepared']).toBe(true)
-    })
-
-    test('writeMessage triggers lazy prepare and increments nextIndex', () => {
-      const writer = createWriter()
-      writer.writeMessage([MType.MouseMove, 100, 200] as Message)
-      expect(writer['prepared']).toBe(true)
-      // nextIndex should be 1: prepare only writes BatchMetadata (no index), + 1 for the message
-      expect(writer['nextIndex']).toBe(1)
     })
 
     test('timestamp-only messages do not trigger a batch send', () => {
@@ -199,13 +148,14 @@ describe('BatchWriter', () => {
       expect(onBatch).toHaveBeenCalledTimes(1)
     })
 
-    test('finaliseBatch flushes the encoder and calls onBatch', () => {
+    test('finaliseBatch emits the player batch via onBatch', () => {
       const writer = createWriter()
       writer.writeMessage([MType.MouseMove, 100, 200] as Message)
-      const flushSpy = jest.spyOn(writer['encoder'], 'flush')
       writer.finaliseBatch()
-      expect(flushSpy).toHaveBeenCalled()
-      expect(onBatch).toHaveBeenCalled()
+      expect(onBatch).toHaveBeenCalledTimes(1)
+      expect(onBatch.mock.calls[0][2]).toBe('player')
+      const batch: Uint8Array = onBatch.mock.calls[0][0]
+      expect(batch[0]).toBe(MType.BatchMetadata)
     })
 
     test('finaliseBatch does nothing when no messages written', () => {
@@ -335,12 +285,12 @@ describe('BatchWriter', () => {
       expect(onBatch).not.toHaveBeenCalled()
     })
 
-    test('clean resets the encoder', () => {
+    test('clean discards in-progress regular content; subsequent finalise emits nothing', () => {
       const writer = createWriter()
-      const cleanSpy = jest.spyOn(writer['encoder'], 'reset')
+      writer.writeMessage([MType.MouseMove, 100, 200])
       writer.clean()
-      expect(cleanSpy).toHaveBeenCalled()
-      expect(writer['prepared']).toBe(false)
+      writer.finaliseBatch()
+      expect(onBatch).not.toHaveBeenCalled()
     })
   })
 })

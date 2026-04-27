@@ -54,10 +54,12 @@ describe('viewport module', () => {
   })
 
   test('testing hashrouter replacer', () => {
-    // @ts-ignore
-    const testURL = new URL("http://example.com/#/path/to/page?query=123")
-    jest.spyOn(window, 'URL').mockImplementation(() => testURL)
-    jest.spyOn(document, 'URL', 'get').mockReturnValue(testURL.toString())
+    // Mock document.URL only — letting `new URL(...)` use the real constructor,
+    // which is what both the hash-replacer logic and defaultUrlSanitizer rely on.
+    // (A spy on window.URL would also intercept the sanitizer's `new URL(cleaned)`
+    // call and return the original un-cleaned URL.)
+    const hashUrl = 'http://example.com/#/path/to/page?query=123'
+    jest.spyOn(document, 'URL', 'get').mockReturnValue(hashUrl)
     const customApp = createApp()
     viewportModule(customApp, { replaceHashSymbol: true })
     const startCallback = customApp.attachStartCallback.mock.calls[0][0]

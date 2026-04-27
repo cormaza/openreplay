@@ -63,6 +63,9 @@ export default class PrimitiveEncoder {
   getCurrentOffset(): number {
     return this.offset
   }
+  getCurrentCheckpoint(): number {
+    return this.checkpointOffset
+  }
   checkpoint() {
     this.checkpointOffset = this.offset
   }
@@ -108,6 +111,16 @@ export default class PrimitiveEncoder {
   reset(): void {
     this.offset = 0
     this.checkpointOffset = 0
+  }
+  /** Roll back offset and checkpoint atomically. Used to undo a partial write
+   *  on overflow. Caller must pass values it captured BEFORE the write attempt;
+   *  silently ignores attempts to advance forward. */
+  rewind(offset: number, checkpointOffset: number): void {
+    if (offset > this.offset || checkpointOffset > this.checkpointOffset) {
+      return
+    }
+    this.offset = offset
+    this.checkpointOffset = checkpointOffset
   }
   flush(): Uint8Array {
     const data = this.data.slice(0, this.checkpointOffset)
