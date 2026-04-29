@@ -31,6 +31,17 @@ function run_numbered_migration() {
         return 0
     fi
 
+    # Skip if existing DB version is newer than target (downgrade attempt). Don't error, continue to next.
+    if [[ "$current_version" != "v0.0.0" && "$state" == "-1" ]]; then
+        local cur_stripped="${current_version#v}"
+        local newest
+        newest=$(printf '%s\n%s\n' "$cur_stripped" "$version" | sort -V | tail -n1)
+        if [[ "$cur_stripped" != "$version" && "$newest" == "$cur_stripped" ]]; then
+            echo "Existing version $current_version > target v$version. Skipping (no downgrade)."
+            return 0
+        fi
+    fi
+
     local start_from=$((state + 1))
     echo "Migration state for version $version: state=$state, current_version=$current_version, starting from step $start_from"
 
