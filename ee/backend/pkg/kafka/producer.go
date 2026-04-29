@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
+const queueFullBackoff = 100 * time.Millisecond
+
 type Producer struct {
 	producer *kafka.Producer
 }
@@ -20,14 +23,15 @@ func NewProducer(messageSizeLimit int, useBatch bool) *Producer {
 	kafkaConfig := &kafka.ConfigMap{
 		"enable.idempotence":                    true,
 		"bootstrap.servers":                     env.String("KAFKA_SERVERS"),
-		"go.delivery.reports":                   true,
+		"go.delivery.reports":                   env.Bool("KAFKA_DELIVERY_REPORTS"),
 		"security.protocol":                     "plaintext",
 		"go.batch.producer":                     useBatch,
 		"message.max.bytes":                     messageSizeLimit, // should be synced with broker config
-		"linger.ms":                             int(env.Uint64Default("KAFKA_LINGER_MS", 1000)),
-		"batch.num.messages":                    int(env.Uint64Default("KAFKA_BATCH_NUM_MESSAGES", 1000)),
-		"queue.buffering.max.ms":                int(env.Uint64Default("KAFKA_QUEUE_BUFFERING_MAX_MS", 1000)),
-		"queue.buffering.max.messages":          int(env.Uint64Default("KAFKA_QUEUE_BUFFERING_MAX_MESSAGES", 1000)),
+		"linger.ms":                             1000,
+		"queue.buffering.max.ms":                1000,
+		"batch.num.messages":                    1000,
+		"queue.buffering.max.messages":          100000,
+		"queue.buffering.max.kbytes":            1048576,
 		"retries":                               3,
 		"retry.backoff.ms":                      100,
 		"max.in.flight.requests.per.connection": 1,
@@ -69,20 +73,34 @@ func (p *Producer) errorHandler() {
 	}
 }
 
+func (p *Producer) produceWithRetry(msg *kafka.Message) error {
+	for {
+		err := p.producer.Produce(msg, nil)
+		if err == nil {
+			return nil
+		}
+		var kErr kafka.Error
+		if !errors.As(err, &kErr) || kErr.Code() != kafka.ErrQueueFull {
+			return err
+		}
+		time.Sleep(queueFullBackoff)
+	}
+}
+
 func (p *Producer) Produce(topic string, key uint64, value []byte) error {
-	return p.producer.Produce(&kafka.Message{
+	return p.produceWithRetry(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: getKeyPartition(key)},
 		Key:            encodeKey(key),
 		Value:          value,
-	}, nil)
+	})
 }
 
 func (p *Producer) ProduceToPartition(topic string, partition, key uint64, value []byte) error {
-	return p.producer.Produce(&kafka.Message{
+	return p.produceWithRetry(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: int32(partition)},
 		Key:            encodeKey(key),
 		Value:          value,
-	}, nil)
+	})
 }
 
 func (p *Producer) Ping(ctx context.Context) error {
