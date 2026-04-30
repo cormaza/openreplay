@@ -2,6 +2,7 @@ import { Layout, Space, Tooltip } from 'antd';
 import { observer } from 'mobx-react-lite';
 import React, { useEffect } from 'react';
 import LangBanner from './LangBanner';
+import AlertsBanner from './AlertsBanner';
 
 import { INDEXES } from 'App/constants/zindex';
 import Logo from 'App/layout/Logo';
@@ -52,6 +53,7 @@ function TopHeader() {
 
   return (
     <>
+      <AlertsBanner />
       {langBannerClosed ? null : <LangBanner onClose={closeLangBanner} />}
       <Header
         style={{

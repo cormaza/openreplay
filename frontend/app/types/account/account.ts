@@ -3,6 +3,13 @@ import { DateTime } from 'luxon';
 import { makeAutoObservable } from 'mobx';
 import Limit, { ILimits } from './limit';
 
+export interface IAccountAlert {
+  text: string;
+  level?: string;
+  button?: string;
+  url?: string;
+}
+
 export interface IAccount extends IMember {
   changePassword?: any;
   limits: ILimits;
@@ -22,6 +29,7 @@ export interface IAccount extends IMember {
   edition: string;
   optOut: string;
   versionNumber: string;
+  alerts?: IAccountAlert[];
 }
 
 export default class Account {
@@ -44,6 +52,7 @@ export default class Account {
   edition: string;
   optOut: boolean;
   versionNumber: string;
+  alerts?: IAccountAlert[];
   tenantId: string;
   name: string;
   createdAt: DateTime;
