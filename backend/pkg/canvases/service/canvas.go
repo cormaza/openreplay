@@ -160,10 +160,12 @@ func (v *ImageStorage) PrepareSessionCanvases(ctx context.Context, sessID uint64
 		return nil
 	}
 
+	canvasCount := 0
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".frames") {
 			continue
 		}
+		canvasCount++
 
 		msg := &messages.CustomEvent{
 			Name:    file.Name(),
@@ -173,6 +175,7 @@ func (v *ImageStorage) PrepareSessionCanvases(ctx context.Context, sessID uint64
 			v.log.Error(ctx, "can't send canvas trigger: %s", err)
 		}
 	}
+	v.metrics.RecordCanvasesPerSession(float64(canvasCount))
 	v.metrics.RecordPreparingDuration(time.Since(start).Seconds())
 
 	v.log.Debug(ctx, "session canvases prepared in %.3fs, session: %d", time.Since(start).Seconds(), sessID)

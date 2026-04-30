@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -97,6 +98,7 @@ func (v *ImageStorage) Process(ctx context.Context, sessID uint64, data []byte) 
 
 func (v *ImageStorage) writeToDisk(payload interface{}) {
 	task := payload.(*saveTask)
+	start := time.Now()
 
 	path := v.cfg.FSDir + "/"
 	if v.cfg.ScreenshotsDir != "" {
@@ -121,6 +123,9 @@ func (v *ImageStorage) writeToDisk(payload interface{}) {
 	if _, err := io.Copy(f, bytes.NewBuffer(task.data)); err != nil {
 		v.log.Fatal(task.ctx, "can't write frame to disk, err: %s", err)
 	}
+
+	v.metrics.IncreaseTotalSavedImages()
+	v.metrics.RecordSavingImageDuration(time.Since(start).Seconds())
 	return
 }
 
@@ -132,13 +137,16 @@ func (v *ImageStorage) PackScreenshots(ctx context.Context, sessID uint64, files
 
 func (v *ImageStorage) sendToS3(payload interface{}) {
 	task := payload.(*uploadTask)
+	start := time.Now()
 
 	if err := v.streamZstdToS3(task.name, task.path); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
 			v.log.Fatal(task.ctx, "can't upload image, name: %s, err: %s", task.name, err)
 		}
+		return
 	}
-	return
+	v.metrics.IncreaseTotalCreatedArchives()
+	v.metrics.RecordUploadingDuration(time.Since(start).Seconds())
 }
 
 func (v *ImageStorage) streamZstdToS3(key, srcPath string) error {

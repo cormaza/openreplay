@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	config "openreplay/backend/internal/config/storage"
 	"openreplay/backend/pkg/logger"
@@ -112,11 +113,24 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 	sid := strconv.FormatUint(task.sessionID, 10)
 	filePath := u.cfg.FSDir + "/" + sid
 
-	uploadFn := func(name, srcPath string) error {
-		if task.encryptionKey != "" {
-			return u.streamEncryptionToS3(name, task.encryptionKey, srcPath)
+	uploadFn := func(name, srcPath, fileType string) error {
+		if info, statErr := os.Stat(srcPath); statErr == nil {
+			u.metrics.RecordSessionSize(float64(info.Size()), fileType)
 		}
-		return u.streamZstdToS3(name, srcPath)
+		start := time.Now()
+		mode := "compress"
+		var err error
+		if task.encryptionKey != "" {
+			mode = "encrypt"
+			err = u.streamEncryptionToS3(name, task.encryptionKey, srcPath)
+		} else {
+			err = u.streamZstdToS3(name, srcPath)
+		}
+		u.metrics.RecordSessionUploadDuration(float64(time.Since(start).Milliseconds()), fileType, mode)
+		if err == nil {
+			u.metrics.IncreaseStorageTotalSessions(fileType)
+		}
+		return err
 	}
 
 	var wg sync.WaitGroup
@@ -126,7 +140,7 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := uploadFn(sid+DEV, filePath+"devtools"); err != nil && !IsNotExist(err) {
+		if err := uploadFn(sid+DEV, filePath+"devtools", "devtools"); err != nil && !IsNotExist(err) {
 			uploadErrors[3] = err.Error()
 		}
 	}()
@@ -136,7 +150,7 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"s", filePath+"e"); err != nil {
+			if err := uploadFn(sid+DOM+"s", filePath+"e", "doms"); err != nil {
 				u.log.Error(ctx, "failed to upload mobe as mobs, session: %d, err: %v", task.sessionID, err)
 			}
 		}()
@@ -144,7 +158,7 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"s", filePath+"s"); err != nil {
+			if err := uploadFn(sid+DOM+"s", filePath+"s", "doms"); err != nil {
 				failedUpload[1] = true
 				if !IsNotExist(err) {
 					uploadErrors[1] = err.Error()
@@ -153,7 +167,7 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 		}()
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"e", filePath+"e"); err != nil && !IsNotExist(err) {
+			if err := uploadFn(sid+DOM+"e", filePath+"e", "dome"); err != nil && !IsNotExist(err) {
 				uploadErrors[2] = err.Error()
 			}
 		}()
@@ -161,7 +175,7 @@ func (u *uploaderImpl) uploadSession(payload interface{}) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := uploadFn(sid+DOM+"s", filePath); err != nil {
+			if err := uploadFn(sid+DOM+"s", filePath, "doms"); err != nil {
 				failedUpload[0] = true
 				if !IsNotExist(err) {
 					uploadErrors[0] = err.Error()

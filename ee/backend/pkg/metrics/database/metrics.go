@@ -9,7 +9,6 @@ import (
 type Database interface {
 	RecordBatchElements(number float64)
 	RecordBatchInsertDuration(durMillis float64)
-	RecordBulkSize(size float64, db, table string)
 	RecordBulkElements(size float64, db, table string)
 	RecordBulkInsertDuration(durMillis float64, db, table string)
 	RecordRequestDuration(durMillis float64, method, table string)
@@ -22,7 +21,6 @@ type Database interface {
 type databaseImpl struct {
 	dbBatchElements           prometheus.Histogram
 	dbBatchInsertDuration     prometheus.Histogram
-	dbBulkSize                *prometheus.HistogramVec
 	dbBulkElements            *prometheus.HistogramVec
 	dbBulkInsertDuration      *prometheus.HistogramVec
 	dbRequestDuration         *prometheus.HistogramVec
@@ -35,7 +33,6 @@ func New(serviceName string) Database {
 	return &databaseImpl{
 		dbBatchElements:           newBatchElements(serviceName),
 		dbBatchInsertDuration:     newBatchInsertDuration(serviceName),
-		dbBulkSize:                newBulkSize(serviceName),
 		dbBulkElements:            newBulkElements(serviceName),
 		dbBulkInsertDuration:      newBulkInsertDuration(serviceName),
 		dbRequestDuration:         newRequestDuration(serviceName),
@@ -49,7 +46,6 @@ func (d *databaseImpl) List() []prometheus.Collector {
 	return []prometheus.Collector{
 		d.dbBatchElements,
 		d.dbBatchInsertDuration,
-		d.dbBulkSize,
 		d.dbBulkElements,
 		d.dbBulkInsertDuration,
 		d.dbRequestDuration,
@@ -87,22 +83,6 @@ func newBatchInsertDuration(serviceName string) prometheus.Histogram {
 
 func (d *databaseImpl) RecordBatchInsertDuration(durMillis float64) {
 	d.dbBatchInsertDuration.Observe(durMillis / 1000.0)
-}
-
-func newBulkSize(serviceName string) *prometheus.HistogramVec {
-	return prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: serviceName,
-			Name:      "bulk_size_bytes",
-			Help:      "A histogram displaying the bulk size in bytes.",
-			Buckets:   common.DefaultSizeBuckets,
-		},
-		[]string{"db", "table"},
-	)
-}
-
-func (d *databaseImpl) RecordBulkSize(size float64, db, table string) {
-	d.dbBulkSize.WithLabelValues(db, table).Observe(size)
 }
 
 func newBulkElements(serviceName string) *prometheus.HistogramVec {

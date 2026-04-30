@@ -13,8 +13,6 @@ type Canvas interface {
 	RecordCanvasesPerSession(number float64)
 	RecordPreparingDuration(duration float64)
 	IncreaseTotalCreatedArchives()
-	RecordArchivingDuration(duration float64)
-	RecordArchiveSize(size float64)
 	RecordUploadingDuration(duration float64)
 	List() []prometheus.Collector
 }
@@ -26,8 +24,6 @@ type canvasImpl struct {
 	canvasesCanvasesPerSession   prometheus.Histogram
 	canvasesPreparingDuration    prometheus.Histogram
 	canvasesTotalCreatedArchives prometheus.Counter
-	canvasesArchivingDuration    prometheus.Histogram
-	canvasesArchiveSize          prometheus.Histogram
 	canvasesUploadingDuration    prometheus.Histogram
 }
 
@@ -39,8 +35,6 @@ func New(serviceName string) Canvas {
 		canvasesCanvasesPerSession:   newCanvasesPerSession(serviceName),
 		canvasesPreparingDuration:    newPreparingDuration(serviceName),
 		canvasesTotalCreatedArchives: newTotalCreatedArchives(serviceName),
-		canvasesArchivingDuration:    newArchivingDuration(serviceName),
-		canvasesArchiveSize:          newArchiveSize(serviceName),
 		canvasesUploadingDuration:    newUploadingDuration(serviceName),
 	}
 }
@@ -53,8 +47,6 @@ func (c *canvasImpl) List() []prometheus.Collector {
 		c.canvasesCanvasesPerSession,
 		c.canvasesPreparingDuration,
 		c.canvasesTotalCreatedArchives,
-		c.canvasesArchivingDuration,
-		c.canvasesArchiveSize,
 		c.canvasesUploadingDuration,
 	}
 }
@@ -145,36 +137,6 @@ func newTotalCreatedArchives(serviceName string) prometheus.Counter {
 
 func (c *canvasImpl) IncreaseTotalCreatedArchives() {
 	c.canvasesTotalCreatedArchives.Inc()
-}
-
-func newArchivingDuration(serviceName string) prometheus.Histogram {
-	return prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: serviceName,
-			Name:      "archiving_duration_seconds",
-			Help:      "A histogram displaying the duration of archiving for each canvas in seconds.",
-			Buckets:   common.DefaultDurationBuckets,
-		},
-	)
-}
-
-func (c *canvasImpl) RecordArchivingDuration(duration float64) {
-	c.canvasesArchivingDuration.Observe(duration)
-}
-
-func newArchiveSize(serviceName string) prometheus.Histogram {
-	return prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: serviceName,
-			Name:      "archive_size_bytes",
-			Help:      "A histogram displaying the size of each canvas archive in bytes.",
-			Buckets:   common.DefaultSizeBuckets,
-		},
-	)
-}
-
-func (c *canvasImpl) RecordArchiveSize(size float64) {
-	c.canvasesArchiveSize.Observe(size)
 }
 
 func newUploadingDuration(serviceName string) prometheus.Histogram {

@@ -11,8 +11,6 @@ type Canvas interface {
 	RecordCanvasesPerSession(number float64)
 	RecordPreparingDuration(duration float64)
 	IncreaseTotalCreatedArchives()
-	RecordArchivingDuration(duration float64)
-	RecordArchiveSize(size float64)
 	RecordUploadingDuration(duration float64)
 	List() []prometheus.Collector
 }
@@ -28,6 +26,4 @@ func (c *canvasImpl) RecordImagesPerCanvas(number float64)     {}
 func (c *canvasImpl) RecordCanvasesPerSession(number float64)  {}
 func (c *canvasImpl) RecordPreparingDuration(duration float64) {}
 func (c *canvasImpl) IncreaseTotalCreatedArchives()            {}
-func (c *canvasImpl) RecordArchivingDuration(duration float64) {}
-func (c *canvasImpl) RecordArchiveSize(size float64)           {}
 func (c *canvasImpl) RecordUploadingDuration(duration float64) {}
