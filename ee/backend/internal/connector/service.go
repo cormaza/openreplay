@@ -21,7 +21,6 @@ func New(cfg *connector.Config, consumer types.Consumer, saver *saver.Saver) ser
 		cfg:      cfg,
 		consumer: consumer,
 		saver:    saver,
-		mm:       mm,
 	}
 	go s.run()
 	return s
@@ -33,8 +32,6 @@ func (d *dbImpl) run() {
 		select {
 		case <-commitTick:
 			d.commit()
-		case msg := <-d.consumer.Rebalanced():
-			log.Println(msg)
 		default:
 			if err := d.consumer.ConsumeNext(); err != nil {
 				log.Fatalf("Error on consumption: %v", err)
