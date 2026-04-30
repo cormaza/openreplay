@@ -23,5 +23,9 @@
     "express": "^5.2.1",
     "source-map": "^0.7.6",
     "winston": "^3.19.0"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.5.6",
+    "path-to-regexp": "^8.4.0"
   }
 }
