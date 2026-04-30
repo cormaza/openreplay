@@ -9,7 +9,6 @@ import (
 type Canvas interface {
 	RecordCanvasImageSize(size float64)
 	IncreaseTotalSavedImages()
-	RecordImagesPerCanvas(number float64)
 	RecordCanvasesPerSession(number float64)
 	RecordPreparingDuration(duration float64)
 	IncreaseTotalCreatedArchives()
@@ -20,7 +19,6 @@ type Canvas interface {
 type canvasImpl struct {
 	canvasesImageSize            prometheus.Histogram
 	canvasesTotalSavedImages     prometheus.Counter
-	canvasesImagesPerCanvas      prometheus.Histogram
 	canvasesCanvasesPerSession   prometheus.Histogram
 	canvasesPreparingDuration    prometheus.Histogram
 	canvasesTotalCreatedArchives prometheus.Counter
@@ -31,7 +29,6 @@ func New(serviceName string) Canvas {
 	return &canvasImpl{
 		canvasesImageSize:            newImageSizeMetric(serviceName),
 		canvasesTotalSavedImages:     newTotalSavedImages(serviceName),
-		canvasesImagesPerCanvas:      newImagesPerCanvas(serviceName),
 		canvasesCanvasesPerSession:   newCanvasesPerSession(serviceName),
 		canvasesPreparingDuration:    newPreparingDuration(serviceName),
 		canvasesTotalCreatedArchives: newTotalCreatedArchives(serviceName),
@@ -43,7 +40,6 @@ func (c *canvasImpl) List() []prometheus.Collector {
 	return []prometheus.Collector{
 		c.canvasesImageSize,
 		c.canvasesTotalSavedImages,
-		c.canvasesImagesPerCanvas,
 		c.canvasesCanvasesPerSession,
 		c.canvasesPreparingDuration,
 		c.canvasesTotalCreatedArchives,
@@ -78,21 +74,6 @@ func newTotalSavedImages(serviceName string) prometheus.Counter {
 
 func (c *canvasImpl) IncreaseTotalSavedImages() {
 	c.canvasesTotalSavedImages.Inc()
-}
-
-func newImagesPerCanvas(serviceName string) prometheus.Histogram {
-	return prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: serviceName,
-			Name:      "images_per_canvas",
-			Help:      "A histogram displaying the number of images per canvas.",
-			Buckets:   common.DefaultBuckets,
-		},
-	)
-}
-
-func (c *canvasImpl) RecordImagesPerCanvas(number float64) {
-	c.canvasesImagesPerCanvas.Observe(number)
 }
 
 func newCanvasesPerSession(serviceName string) prometheus.Histogram {

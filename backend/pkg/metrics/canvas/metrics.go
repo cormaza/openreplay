@@ -7,7 +7,6 @@ import (
 type Canvas interface {
 	RecordCanvasImageSize(size float64)
 	IncreaseTotalSavedImages()
-	RecordImagesPerCanvas(number float64)
 	RecordCanvasesPerSession(number float64)
 	RecordPreparingDuration(duration float64)
 	IncreaseTotalCreatedArchives()
@@ -22,7 +21,6 @@ func New(serviceName string) Canvas { return &canvasImpl{} }
 func (c *canvasImpl) List() []prometheus.Collector             { return []prometheus.Collector{} }
 func (c *canvasImpl) RecordCanvasImageSize(size float64)       {}
 func (c *canvasImpl) IncreaseTotalSavedImages()                {}
-func (c *canvasImpl) RecordImagesPerCanvas(number float64)     {}
 func (c *canvasImpl) RecordCanvasesPerSession(number float64)  {}
 func (c *canvasImpl) RecordPreparingDuration(duration float64) {}
 func (c *canvasImpl) IncreaseTotalCreatedArchives()            {}
