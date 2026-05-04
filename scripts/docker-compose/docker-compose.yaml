@@ -6,7 +6,7 @@ services:
 
   postgresql:
     image: ghcr.io/openreplay/postgres:${POSTGRES_VERSION}
-    container_name: postgres
+    container_name: postgres-or
     volumes:
       - pgdata:/bitnami/postgresql
     networks:
